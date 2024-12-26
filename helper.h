@@ -18,6 +18,14 @@ typedef struct {
 	double price;
 } dish;
 
+typedef struct {
+	long mtype;
+	int group_size;
+	int group_id;
+	int table_number;
+} table_reservation;
+
+
 extern dish menu[10];
 
 void P(int sem_id, int sem_num);
