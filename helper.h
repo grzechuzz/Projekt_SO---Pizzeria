@@ -1,7 +1,10 @@
 #ifndef HELPER_H
 #define HELPER_H
 
-#define SEM_MUTEX_TABLE 0
+#define SEM_MUTEX_TABLES_DATA 0
+#define SEM_GEN_KEY 'A'
+#define SHM_GEN_KEY 'B'
+#define MSG_GEN_KEY 'C'
 
 typedef struct {
 	int capacity;
