@@ -77,12 +77,12 @@ int main(int argc, char* argv[]) {
 	printf("Kasjer: otwieram kase!\n");
 	
 	while(1) {
-		table_reservation msg;
+		cashier_client_comm msg;
 		msg.group_size = 0;
 		msg.group_id = -1;
 		msg.table_number = 0;
 		// Odebranie zapytania klienta o stolik
-		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), 1, 0) == -1) {
+		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), RESERVATION_AND_ORDER, 0) == -1) {
 			perror("Blad odbierania komunikatu w msgrcv()");
 			exit(1);
 		}

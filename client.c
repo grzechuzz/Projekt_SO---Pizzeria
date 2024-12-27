@@ -29,8 +29,8 @@ int main(int argc, char* argv[]) {
 
 	printf("Grupa klientow (%d) %d-osobowa: zglaszamy zapotrzebowanie na stolik.\n", getpid(), n);
 	
-	table_reservation msg; // mtype, group_size, group_id, table_number
-	msg.mtype = 1;
+	cashier_client_comm msg;
+	msg.mtype = RESERVATION_AND_ORDER;
 	msg.group_id = getpid();
 	msg.table_number = 0;
 	msg.group_size = n;

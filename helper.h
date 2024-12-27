@@ -2,9 +2,13 @@
 #define HELPER_H
 
 #define SEM_MUTEX_TABLES_DATA 0
+
 #define SEM_GEN_KEY 'A'
 #define SHM_GEN_KEY 'B'
 #define MSG_GEN_KEY 'C'
+
+#define RESERVATION_AND_ORDER 1
+#define EXIT_TABLE 2
 
 typedef struct {
 	int capacity;
@@ -20,10 +24,13 @@ typedef struct {
 
 typedef struct {
 	long mtype;
+	int action;
 	int group_size;
 	int group_id;
 	int table_number;
-} table_reservation;
+	int dishes[3];
+	double total_price;
+} cashier_client_comm;
 
 
 extern dish menu[10];
