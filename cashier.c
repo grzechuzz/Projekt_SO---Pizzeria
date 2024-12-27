@@ -5,13 +5,13 @@
 #include <sys/sem.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/msg.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include "helper.h"
 
 void initialize_tables(table* tables, int start, int end, int capacity);
-void find_table(table* tables, int group_size, int table_count);
-void reservation_table(int table_num);
+int find_table(table* tables, int group_size, int table_count);
 
 int main(int argc, char* argv[]) {
         int x1 = atoi(argv[1]);
@@ -112,6 +112,12 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	msgctl(msg_id, IPC_RMID, NULL);
+	semctl(sem_id, 0, IPC_RMID);
+	shmdt(tables);
+	shmctl(shm_id, IPC_RMID, NULL);
+
+	return 0;
 }
 
 void initialize_tables(table* tables, int start, int end, int capacity) {
