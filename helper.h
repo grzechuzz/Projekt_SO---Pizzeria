@@ -7,8 +7,9 @@
 #define SHM_GEN_KEY 'B'
 #define MSG_GEN_KEY 'C'
 
-#define RESERVATION_AND_ORDER 1
-#define EXIT_TABLE 2
+#define TABLE_RESERVATION 1
+#define ORDER 2
+#define TABLE_EXIT 3
 
 typedef struct {
 	int capacity;
