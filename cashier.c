@@ -104,7 +104,7 @@ int main(int argc, char* argv[]) {
 		V(sem_id, SEM_MUTEX_TABLES_DATA);
 
 		msg.table_number = table_num;
-		msg.mtype = 2;
+		msg.mtype = msg.group_id;
 		//  Odpowiedz czy jest stolik, klient sie skapnie po table_number czy jest czy nie
 		if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
 			perror("Blad wysylania komunikatu w msgsnd()");

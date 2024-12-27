@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	} 
 
-	if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), 2, 0) == -1) {
+	if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), getpid(), 0) == -1) {
 		perror("Blad odbierania komunikatu w msgrcv()");
 		exit(1);
 	}
