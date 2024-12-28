@@ -10,8 +10,8 @@
 #include <sys/wait.h>
 #include "helper.h"
 
-void initialize_tables(table* tables, int start, int end, int capacity);
-int find_table(table* tables, int group_size, int table_count);
+void initialize_tables(Table* tables, int start, int end, int capacity);
+int find_table(Table* tables, int group_size, int table_count);
 
 int main(int argc, char* argv[]) {
         int x1 = atoi(argv[1]);
@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
                 exit(1);
         }
 
-        table* tables = shmat(shm_id, NULL, 0);
+        Table* tables = shmat(shm_id, NULL, 0);
         if (tables == (void*)-1) {
                 perror("Blad podlaczenia pamieci dzielonej w shmat()");
                 exit(1);
@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
 	printf("Kasjer: otwieram kase!\n");
 	
 	while(1) {
-		cashier_client_comm msg; // mtype, action, group_size, group_id, table_number, dishes, total_price
+		CashierClientComm msg; // mtype, action, group_size, group_id, table_number, dishes,
 		msg.table_number = -1;
 	
 		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), 1, 0) == -1) {
@@ -116,7 +116,7 @@ int main(int argc, char* argv[]) {
 		} else if (msg.action == TABLE_EXIT) {
 			P(sem_id, SEM_MUTEX_TABLES_DATA);
 			int x = 0;
-			while (x < 4 && != tables[msg.table_number].group_id[x])
+			while (x < 4 && tables[msg.table_number].group_id[x] != msg.group_id)
 				x++;
 
 			tables[msg.table_number].group_id[x] = 0;
@@ -136,7 +136,7 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
-void initialize_tables(table* tables, int start, int end, int capacity) {
+void initialize_tables(Table* tables, int start, int end, int capacity) {
         for (int i = start; i < end; ++i) {
                 for (int j = 0; j < 4; ++j)
                         tables[i].group_id[j] = 0;
@@ -147,7 +147,7 @@ void initialize_tables(table* tables, int start, int end, int capacity) {
         }
 }
 
-int find_table(table* tables, int group_size, int table_count) {
+int find_table(Table* tables, int group_size, int table_count) {
 	for (int i = 0; i < table_count; ++i) {
 		if ((tables[i].group_size == 0 || tables[i].group_size == group_size) &&
 		   ((tables[i].capacity - tables[i].current - group_size >= 0)))
