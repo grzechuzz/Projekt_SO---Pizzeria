@@ -62,7 +62,6 @@ int main(int argc, char* argv[]) {
 	}
 
 
-
 	int msg_id = msgget(msg_key, IPC_CREAT|0644);
 	if (msg_id == -1) {
 		perror("Blad tworzenia kolejki komunikatow w msgget()");
@@ -77,39 +76,56 @@ int main(int argc, char* argv[]) {
 	printf("Kasjer: otwieram kase!\n");
 	
 	while(1) {
-		cashier_client_comm msg;
-		msg.group_size = 0;
-		msg.group_id = -1;
-		msg.table_number = 0;
-		// Odebranie zapytania klienta o stolik
-		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), RESERVATION_AND_ORDER, 0) == -1) {
+		cashier_client_comm msg; // mtype, action, group_size, group_id, table_number, dishes, total_price
+		msg.table_number = -1;
+	
+		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), 1, 0) == -1) {
 			perror("Blad odbierania komunikatu w msgrcv()");
 			exit(1);
 		}
 		
-		// Blokada sekcji krytycznej (manager tez ma dostep do tables i moze se tam robic jakies glupoty), sprawdzamy czy jest dostepny stolik
-		P(sem_id, SEM_MUTEX_TABLES_DATA);
-		int table_num = find_table(tables, msg.group_size, table_count);
-		if (table_num == -1) {
-			printf("Kasjer: nie znaleziono stolikow dla grupy (%d) %d-osobowej.\n", msg.group_id, msg.group_size);
-		} else { 
-			tables[table_num].current += msg.group_size;
-			tables[table_num].group_size = msg.group_size;
-			int group = 0;
-			while (group < 4 && tables[table_num].group_id[group] != 0)
-				group++;
-			tables[table_num].group_id[group] = msg.group_id;
-			printf("Kasjer: stolik nr %d przydzielony dla grupy (%d) %d-osobowej.\n", table_num, msg.group_id, msg.group_size);
-		}
-		V(sem_id, SEM_MUTEX_TABLES_DATA);
+		if (msg.action == TABLE_RESERVATION) {
+			// Blokada sekcji krytycznej (manager tez ma dostep do tables)
+			P(sem_id, SEM_MUTEX_TABLES_DATA);
+			int table_num = find_table(tables, msg.group_size, table_count);
+			if (table_num == -1) {
+				printf("Kasjer: nie znaleziono stolikow dla grupy (%d) %d-osobowej.\n", msg.group_id, msg.group_size);
+			} else { 
+				tables[table_num].current += msg.group_size;
+				tables[table_num].group_size = msg.group_size;
+				int group = 0;
+				while (group < 4 && tables[table_num].group_id[group] != 0)
+					group++;
+				tables[table_num].group_id[group] = msg.group_id;
+				printf("Kasjer: stolik nr %d przydzielony dla grupy (%d) %d-osobowej.\n", table_num, msg.group_id, msg.group_size);
+			}
+			V(sem_id, SEM_MUTEX_TABLES_DATA);
 
-		msg.table_number = table_num;
-		msg.mtype = msg.group_id;
-		//  Odpowiedz czy jest stolik, klient sie skapnie po table_number czy jest czy nie
-		if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
-			perror("Blad wysylania komunikatu w msgsnd()");
-			exit(1);
+			msg.table_number = table_num;
+			msg.mtype = msg.group_id;
+			//  Odpowiedz czy jest stolik, klient sie skapnie po table_number czy jest czy nie
+			if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+				perror("Blad wysylania komunikatu w msgsnd()");
+				exit(1);
+			}
+		} else if (msg.action == ORDER) {
+			//TODO 	
+
+		printf("Kasjer: Grupa (%d) %d-osobowa, zrobila zamowienie za %lf zlotych. Siedza przy stoliku nr %d\n",
+		       msg.group_id, msg.group_size, msg.total_price, msg.table_number);
+		} else if (msg.action == TABLE_EXIT) {
+			P(sem_id, SEM_MUTEX_TABLES_DATA);
+			int x = 0;
+			while (x < 4 && != tables[msg.table_number].group_id[x])
+				x++;
+
+			tables[msg.table_number].group_id[x] = 0;
+			tables[msg.table_number].current -= msg.group_size;
+			if (tables[msg.table_number].current == 0)
+				tables[msg.table_number].group_size = 0;		
+			V(sem_id, SEM_MUTEX_TABLES_DATA);
 		}
+
 	}
 
 	msgctl(msg_id, IPC_RMID, NULL);

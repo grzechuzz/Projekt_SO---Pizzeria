@@ -29,30 +29,44 @@ int main(int argc, char* argv[]) {
 
 	printf("Grupa klientow (%d) %d-osobowa: zglaszamy zapotrzebowanie na stolik.\n", getpid(), n);
 	
-	cashier_client_comm msg;
-	msg.mtype = RESERVATION_AND_ORDER;
-	msg.group_id = getpid();
-	msg.table_number = 0;
+	cashier_client_comm msg; // (mtype, action, group_size, group_id, table_number, dishes, total_price)
+	msg.mtype = 1;
+	msg.action = TABLE_RESERVATION;
 	msg.group_size = n;
+	msg.group_id = getpid();
+	msg.table_number = -1;
 
+	// zgloszenie zapotrzebowania na stolik
 	if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
 		perror("Blad wysylania komunikatu w msgsnd()");
 		exit(1);
 	} 
 
+	// odbior komunikatu: mamy stolik lub nie :D
 	if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), getpid(), 0) == -1) {
 		perror("Blad odbierania komunikatu w msgrcv()");
 		exit(1);
 	}
 
-	if (msg.table_number == -1) 
+	if (msg.table_number == -1) {
 		printf("Grupa klientow (%d) %d-osobowa: nie chce sie nam czekac, wychodzimy z lokalu.\n", getpid(), n);
-	else 
-		printf("Grupa klientow (%d) %d-osobowa: Siadamy przy stoliku nr %d", getpid(), n, msg.table_number);
+		exit(0);
+	} 
 
+	// TODO obsluga zamawianego zarcia,;DDDDDDd
+	
 
-	// tutaj potem bedzie obsluga zamawianego zarcia, w cashier.c to samo ;DDDDDDd
+	// jedzenie
+	sleep(60);
+	// opuszczanie stolika
+	msg.mtype = 1;
+	msg.action = TABLE_EXIT;
+	if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+		
+	}
+	printf("Grupa kilentow (%d) %d-osobowa: Opuszczamy stolik nr %d.\n", getpid(), n, msg.table_number);
 
+	
 	return 0;
 }
 
