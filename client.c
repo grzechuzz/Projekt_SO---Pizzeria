@@ -90,6 +90,7 @@ int main(int argc, char* argv[]) {
 	}
 	
 	double total_price = 0;
+	msg.mtype = 1;
 	msg.action = ORDER;
 	for (int i = 0; i < n; ++i) {
 		msg.dishes[i] = orders[i];
