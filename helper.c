@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include "helper.h"
 
-dish menu[10] = {	
+Dish menu[10] = {	
 	{"Pizza Margherita", 33.99},
 	{"Pizza Capricciosa", 42.99},
 	{"Pizza Neapolitanska", 44.99},
@@ -41,5 +41,8 @@ void V(int sem_id, int sem_num) {
 		perror("Operacja V nie powiodla sie!");
 		exit(1);
 	}
+}
 
+void print_single_order(int id) {
+	printf("wybiera: %s w cenie %lf!\n", menu[id].dish_name, menu[id].price);
 }

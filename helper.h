@@ -1,42 +1,48 @@
 #ifndef HELPER_H
 #define HELPER_H
 
-#define SEM_MUTEX_TABLES_DATA 0
+#include <sys/types.h>
 
+#define SEM_MUTEX_TABLES_DATA 0
 #define SEM_GEN_KEY 'A'
 #define SHM_GEN_KEY 'B'
 #define MSG_GEN_KEY 'C'
-
 #define TABLE_RESERVATION 1
 #define ORDER 2
 #define TABLE_EXIT 3
 
+
 typedef struct {
 	int capacity;
-	int group_id[4];
+	pid_t group_id[4];
 	int group_size;
 	int current;
-} table;
+} Table;
 
 typedef struct {
 	const char* dish_name;
 	double price;
-} dish;
+} Dish;
 
 typedef struct {
 	long mtype;
 	int action;
 	int group_size;
-	int group_id;
+	pid_t group_id;
 	int table_number;
 	int dishes[3];
-	double total_price;
-} cashier_client_comm;
+} CashierClientComm;
+
+typedef struct {
+	int* orders;
+	int size;	
+} ClientOrders;
 
 
-extern dish menu[10];
+extern Dish menu[10];
 
 void P(int sem_id, int sem_num);
 void V(int sem_id, int sem_num);
+void print_single_order(int id);
 
 #endif // HELPER_H
