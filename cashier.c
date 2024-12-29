@@ -8,10 +8,12 @@
 #include <sys/msg.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 #include "helper.h"
 
 void initialize_tables(Table* tables, int start, int end, int capacity);
 int find_table(Table* tables, int group_size, int table_count);
+void generate_report(int* dishes_count, double total_income); 
 
 int main(int argc, char* argv[]) {
         int x1 = atoi(argv[1]);
@@ -73,10 +75,13 @@ int main(int argc, char* argv[]) {
         initialize_tables(tables, x1+x2, x1+x2+x3, 3);
         initialize_tables(tables, x1+x2+x3, x1+x2+x3+x4, 4);
 
+	int dishes_count[10] = {0};
+	double total_income = 0.0;
+
 	printf("Kasjer: otwieram kase!\n");
 	
 	while(1) {
-		CashierClientComm msg; // mtype, action, group_size, group_id, table_number, dishes,
+		CashierClientComm msg; 
 		msg.table_number = -1;
 	
 		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), 1, 0) == -1) {
@@ -85,7 +90,6 @@ int main(int argc, char* argv[]) {
 		}
 		
 		if (msg.action == TABLE_RESERVATION) {
-			// Blokada sekcji krytycznej (manager tez ma dostep do tables)
 			P(sem_id, SEM_MUTEX_TABLES_DATA);
 			int table_num = find_table(tables, msg.group_size, table_count);
 			if (table_num == -1) {
@@ -103,16 +107,16 @@ int main(int argc, char* argv[]) {
 
 			msg.table_number = table_num;
 			msg.mtype = msg.group_id;
-			//  Odpowiedz czy jest stolik, klient sie skapnie po table_number czy jest czy nie
+			
 			if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
 				perror("Blad wysylania komunikatu w msgsnd()");
 				exit(1);
 			}
 		} else if (msg.action == ORDER) {
-			//TODO 	
-
-		printf("Kasjer: Grupa (%d) %d-osobowa, zrobila zamowienie za %lf zlotych. Siedza przy stoliku nr %d\n",
-		       msg.group_id, msg.group_size, msg.total_price, msg.table_number);
+			for (int i = 0; i < msg.group_size; ++i) {
+				dishes_count[msg.dishes[i]]++;
+				total_income += menu[msg.dishes[i]].price;
+			}
 		} else if (msg.action == TABLE_EXIT) {
 			P(sem_id, SEM_MUTEX_TABLES_DATA);
 			int x = 0;
@@ -127,6 +131,9 @@ int main(int argc, char* argv[]) {
 		}
 
 	}
+
+	printf("Kasjer zamykam kase!\n");
+	generate_report(dishes_count, total_income);
 
 	msgctl(msg_id, IPC_RMID, NULL);
 	semctl(sem_id, 0, IPC_RMID);
@@ -156,3 +163,57 @@ int find_table(Table* tables, int group_size, int table_count) {
 	return -1;
 }
 
+void generate_report(int* dishes_count, double total_income) {
+	time_t now = time(NULL);
+	struct tm* local_time = localtime(&now);
+	char date[20];
+	strftime(date, sizeof(date), "%Y-%m-%d", local_time);
+	
+	
+	printf("----------RAPORT ZA DZIEN %s----------\n", date);
+	printf("Calkowity przychod: %lf zl\n", total_income);
+	printf("Sprzedano:\n");
+	for (int i = 0; i < 10; ++i) 
+		printf("%s: %d\n", menu[i].dish_name, dishes_count[i]);
+	
+	int file = open("reports.txt", O_WRONLY | O_CREAT | O_APPEND, 0644);
+	if (file == -1) {
+		perror("Blad otwarcia pliku!\n");
+		exit(1);
+	}
+
+	char header_line[50];
+	snprintf(header_line, sizeof(header_line), "----------RAPORT ZA DZIEN %s----------\n", date);
+       	if (write(file, header_line, strlen(header_line)) == -1) {
+		perror("Blad zapisu do pliku!\n");
+		close(file);
+		exit(1);
+	}
+	
+	char income_line[50];
+	snprintf(income_line, sizeof(income_line), "Calkowity przychod: %lf zl", total_income);
+	if (write(file, income_line, strlen(income_line)) == -1) {
+		perror("Blad zapisu do pliku\n");
+		close(file);
+		exit(1);
+	}
+
+	char sold_header[] = "Sprzedano:\n";
+	if (write(file, sold_header, strlen(sold_header)) == -1) {
+		perror("Blad zapisu do pliku!\n");
+		close(file);
+		exit(1);
+	}
+
+	for (int i = 0; i < 10; ++i) {
+		char dish_line[50];
+		snprintf(dish_line, sizeof(dish_line), "%s: %d\n", menu[i].dish_name, dishes_count[i]);
+		if (write(file, dish_line, strlen(dish_line)) == -1) {
+			perror("Blad zapisu do pliku!\n");
+			close(file);
+			exit(1);
+		}	
+	}
+
+	close(file);
+} 
