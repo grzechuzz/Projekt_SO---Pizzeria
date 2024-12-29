@@ -22,20 +22,10 @@ int main(int argc, char* argv[]) {
 	int x4 = atoi(argv[4]);
 	int table_count = x1 + x2 + x3 + x4;
 
+	// Klucze (semafor, pamiec dzielona, kolejka komunikatow)
         key_t sem_key = ftok(".", SEM_GEN_KEY);
         if (sem_key == -1) {
                 perror("Blad generowania klucza w ftok()");
-                exit(1);
-        }
-
-        int sem_id = semget(sem_key, 1, IPC_CREAT|0644);
-        if (sem_id == -1) {
-                perror("Blad tworzenia semaforow w semget()");
-                exit(1);
-        }
-
-        if (semctl(sem_id, SEM_MUTEX_TABLES_DATA, SETVAL, 1) == -1) {
-                perror("Blad inicjalizacji semafora w semctl()");
                 exit(1);
         }
 
@@ -45,30 +35,23 @@ int main(int argc, char* argv[]) {
                 exit(1);
         }
 
-        int shm_id = shmget(shm_key, sizeof(table) * table_count, IPC_CREAT|0644);
-        if (shm_id == -1) {
-                perror("Blad tworzenia pamieci dzielonej w shmget()");
-                exit(1);
-        }
-
-        Table* tables = shmat(shm_id, NULL, 0);
-        if (tables == (void*)-1) {
-                perror("Blad podlaczenia pamieci dzielonej w shmat()");
-                exit(1);
-        }
-
-	key_t msg_key = ftok(".", MSG_GEN_KEY);
+        key_t msg_key = ftok(".", MSG_GEN_KEY);
 	if (msg_key == -1) {
 		perror("Blad generowania klucza w ftok()");
 		exit(1);
 	}
 
+	// Tworzenie semafora, pamieci dzielonej, kolejki komunikatow
+	int sem_id = create_sem(sem_key);
+	int shm_id = create_shm(shm_key, sizeof(Table) * table_count);
+	int msg_id = create_msg(msg_key);
 
-	int msg_id = msgget(msg_key, IPC_CREAT|0644);
-	if (msg_id == -1) {
-		perror("Blad tworzenia kolejki komunikatow w msgget()");
+
+	Table* tables = shmat(shm_id, NULL, 0);
+	if (tables == (void*)-1) {
+		perror("Blad podlaczenia pamieci dzielonej w shmat()");
 		exit(1);
-	}	
+	}
 
         initialize_tables(tables, 0, x1, 1);
         initialize_tables(tables, x1, x1+x2, 2);
@@ -135,10 +118,8 @@ int main(int argc, char* argv[]) {
 	printf("Kasjer zamykam kase!\n");
 	generate_report(dishes_count, total_income);
 
-	msgctl(msg_id, IPC_RMID, NULL);
-	semctl(sem_id, 0, IPC_RMID);
-	shmdt(tables);
-	shmctl(shm_id, IPC_RMID, NULL);
+	remove_msg(msg_id);
+	remove_shm(shm_id, tables);
 
 	return 0;
 }
@@ -182,7 +163,7 @@ void generate_report(int* dishes_count, double total_income) {
 		exit(1);
 	}
 
-	char header_line[50];
+	char header_line[100];
 	snprintf(header_line, sizeof(header_line), "----------RAPORT ZA DZIEN %s----------\n", date);
        	if (write(file, header_line, strlen(header_line)) == -1) {
 		perror("Blad zapisu do pliku!\n");
@@ -190,7 +171,7 @@ void generate_report(int* dishes_count, double total_income) {
 		exit(1);
 	}
 	
-	char income_line[50];
+	char income_line[100];
 	snprintf(income_line, sizeof(income_line), "Calkowity przychod: %lf zl", total_income);
 	if (write(file, income_line, strlen(income_line)) == -1) {
 		perror("Blad zapisu do pliku\n");
@@ -206,7 +187,7 @@ void generate_report(int* dishes_count, double total_income) {
 	}
 
 	for (int i = 0; i < 10; ++i) {
-		char dish_line[50];
+		char dish_line[100];
 		snprintf(dish_line, sizeof(dish_line), "%s: %d\n", menu[i].dish_name, dishes_count[i]);
 		if (write(file, dish_line, strlen(dish_line)) == -1) {
 			perror("Blad zapisu do pliku!\n");
