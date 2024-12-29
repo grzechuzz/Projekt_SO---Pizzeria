@@ -2,8 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/sem.h>
+#include <sys/shm.h>
+#include <sys/msg.h>
 #include <sys/ipc.h>
 #include <sys/types.h>
+#include <unistd.h>
 #include "helper.h"
 
 Dish menu[10] = {	
