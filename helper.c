@@ -78,6 +78,36 @@ void remove_msg(int msg_id) {
 		perror("blad w msgctl() [usuwanie kolejki komunikatow]");
 }
 
+int join_sem(key_t key) {
+	int sem_id = semget(key, 0, 0);
+	if (sem_id == -1) {
+		perror("blad w semget() [dolaczanie do zbioru semaforow]");
+		exit(1);
+	}
+
+	return sem_id;
+}
+
+int join_shm(key_t key) {
+	int shm_id = shmget(key, 0, 0);
+	if (shm_id == -1) {
+		perror("blad w shmget() [dolaczanie do pamieci dzielonej]");
+		exit(1);
+	}
+
+	return shm_id;
+}
+
+int join_msg(key_t key) {
+	int msg_id = msgget(key, 0);
+	if (msg_id == -1) {
+		perror("blad w msgget() [dolaczanie do kolejki komunikatow]");
+		exit(1);
+	}
+
+	return msg_id;
+}
+
 void P(int sem_id, int sem_num) {
 	struct sembuf sbuf;
 	sbuf.sem_num = sem_num;
