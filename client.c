@@ -7,33 +7,42 @@
 #include <sys/ipc.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <signal.h>
 #include "helper.h"
 
 void arg_checker(int argc, char* argv[]);
 void* single_person_order(void* orders);
-
+void fire_signal_handler(int sig);
 pthread_mutex_t mutex;
 
 int main(int argc, char* argv[]) {
 	arg_checker(argc, argv);
 	srand(time(NULL));
+	setbuf(stdout, NULL);
 
+	// Obsluga sygnalu pozaru dla klientow
+	struct sigaction sa;
+	sa.sa_handler = fire_signal_handler;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+
+	if (sigaction(SIGUSR1, &sa, NULL) == -1) {
+		perror("Blad sigaction() [sygnal klient]");
+		exit(1);
+	}
+
+	// Dolaczenie do kolejki komunikatow (wymiana komunikatow kajser<->klient)
 	key_t msg_key = ftok(".", MSG_GEN_KEY);
 	if (msg_key == -1) {
 		perror("Blad uzyskiwania klucza w ftok()");
 		exit(1);
 	}
 
-	int msg_id = msgget(msg_key, 0);
-	if (msg_id == -1) {
-		perror("Blad dolaczania do kolejki komunikatow w msgget()");
-		exit(1);
-	}
+	int msg_id = join_msg(msg_key);
 
 	int n = atoi(argv[1]);
-
 	printf("Grupa klientow (%d) %d-osobowa: zglaszamy zapotrzebowanie na stolik.\n", getpid(), n);
-	
+
 	CashierClientComm msg;
 	msg.mtype = 1;
 	msg.action = TABLE_RESERVATION;
@@ -41,13 +50,13 @@ int main(int argc, char* argv[]) {
 	msg.group_id = getpid();
 	msg.table_number = -1;
 
-	// zgloszenie zapotrzebowania na stolik
+	// Zgloszenie zapotrzebowania na stolik
 	if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
 		perror("Blad wysylania komunikatu w msgsnd()");
 		exit(1);
 	} 
 
-	// odbior komunikatu: mamy stolik lub nie :D
+	// Odbior komunikatu przez klientow, maja stolik lub nie
 	if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), getpid(), 0) == -1) {
 		perror("Blad odbierania komunikatu w msgrcv()");
 		exit(1);
@@ -58,7 +67,7 @@ int main(int argc, char* argv[]) {
 		exit(0);
 	} 
 
-	// obsluga zamawianego zarcia
+	// Obsluga zamowienia ze strony klientow
 	for (int i = 0; i < 3; ++i) 
 		msg.dishes[i] = -1;
 	
@@ -71,10 +80,11 @@ int main(int argc, char* argv[]) {
 	int* orders = calloc(n, sizeof(int));
 	pthread_t* tids = calloc(n, sizeof(pthread_t));
 
-	ClientOrders* co;
-	co->orders = orders;
-	co->size = n;
-	
+	ClientOrders co_d;
+	co_d.orders = orders;
+	co_d.size = n;
+	ClientOrders* co = &co_d;
+
 	for (int i = 0; i < n; ++i) {
 		if (pthread_create(&tids[i], NULL, single_person_order, (void*)co) == -1) {
 			perror("Blad podczas tworzenia watku w pthread_create()");
@@ -105,9 +115,10 @@ int main(int argc, char* argv[]) {
 	printf("Grupa klientow (%d) %d-osobowa: Skladamy zamowienie na laczna kwote %lf.\n", getpid(), n, total_price);
 	printf("Grupa klientow (%d) %d-osobowa: Siadamy z naszym zamowieniem przy stoliku nr %d\n", getpid(), n, msg.table_number);
 
-	// jedzenie
-	sleep(60);
-	// opuszczanie stolika
+	// Jedzenie
+	sleep(15);
+
+	// Opuszczanie stolika 
 	msg.mtype = 1;
 	msg.action = TABLE_EXIT;
 	if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
@@ -150,6 +161,12 @@ void* single_person_order(void* orders) {
 	print_single_order(co->orders[x]);
 	pthread_mutex_unlock(&mutex);
 	
-
 	pthread_exit(NULL);
+}
+
+void fire_signal_handler(int sig) {
+	if (sig == SIGUSR1) {
+		printf("Grupa klientow (%d): Pali sie! UCIEKAMY!!111\n", getpid());
+		exit(0);
+	}
 }
