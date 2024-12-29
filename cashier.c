@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/sem.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -9,11 +10,15 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <signal.h>
 #include "helper.h"
+
+volatile sig_atomic_t fire_alarm = 0;
 
 void initialize_tables(Table* tables, int start, int end, int capacity);
 int find_table(Table* tables, int group_size, int table_count);
 void generate_report(int* dishes_count, double total_income); 
+void fire_signal_handler(int sig);
 
 int main(int argc, char* argv[]) {
         int x1 = atoi(argv[1]);
@@ -21,6 +26,18 @@ int main(int argc, char* argv[]) {
 	int x3 = atoi(argv[3]);
 	int x4 = atoi(argv[4]);
 	int table_count = x1 + x2 + x3 + x4;
+		
+	setbuf(stdout, NULL);
+	// Do obslugi sygnalu
+	struct sigaction sa;
+	sa.sa_handler = fire_signal_handler;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+
+	if (sigaction(SIGUSR1, &sa, NULL) == -1) {
+		perror("Blad sigaction() [kasjer]");
+		exit(1);
+	}
 
 	// Klucze (semafor, pamiec dzielona, kolejka komunikatow)
         key_t sem_key = ftok(".", SEM_GEN_KEY);
@@ -62,8 +79,8 @@ int main(int argc, char* argv[]) {
 	double total_income = 0.0;
 
 	printf("Kasjer: otwieram kase!\n");
-	
-	while(1) {
+
+	while(!fire_alarm) {
 		CashierClientComm msg; 
 		msg.table_number = -1;
 	
@@ -114,12 +131,14 @@ int main(int argc, char* argv[]) {
 		}
 
 	}
+	
+	if (fire_alarm == 1)
+		printf("Kasjer: POZAR! Zamykam natychmiast kase i szybko generuje raport!\n");
+	else 
+		printf("Kasjer: zamykam kase i generuje raport!\n");
 
-	printf("Kasjer zamykam kase!\n");
 	generate_report(dishes_count, total_income);
-
 	remove_msg(msg_id);
-	remove_shm(shm_id, tables);
 
 	return 0;
 }
@@ -198,3 +217,9 @@ void generate_report(int* dishes_count, double total_income) {
 
 	close(file);
 } 
+
+void fire_signal_handler(int sig) {
+	if (sig == SIGUSR1)
+		fire_alarm = 1;
+	
+}
