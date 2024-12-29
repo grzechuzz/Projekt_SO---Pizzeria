@@ -41,7 +41,7 @@ typedef struct {
 
 extern Dish menu[10];
 
-int create_sem(key_t key, int val);
+int create_sem(key_t key);
 int create_shm(key_t key, size_t size);
 int create_msg(key_t key);
 void remove_sem(int sem_id);
