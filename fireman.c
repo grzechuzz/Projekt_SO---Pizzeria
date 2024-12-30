@@ -36,17 +36,13 @@ int main(int argc, char* argv[]) {
         	exit(1);
     	}
 
-    	sleep(rand() % 15 + 100);
+    	sleep(rand() % 15 + 30);
     	printf("Strazak: POZAR!!!\n");
 
 
     	// Sygnaly pozarow do klientow przy stole, menadzera i kasjera
     	if (kill(pid_cashier, SIGUSR1) == -1) {
         	perror("Nie udalo sie wyslac SIGUSR1 do kasjera");
-    	}
-
-    	if (kill(pid_manager, SIGUSR1) == -1) {
-        	perror("Nie udalo sie wyslac SIGUSR1 do managera");
     	}
 	
 	P(sem_id, SEM_MUTEX_TABLES_DATA);
@@ -58,6 +54,10 @@ int main(int argc, char* argv[]) {
             		}
         	}
     	}
+
+	if (kill(pid_manager, SIGUSR1) == -1) {
+		perror("Nie udalo sie wyslac SIGUSR1 do managera");
+	}
 	V(sem_id, SEM_MUTEX_TABLES_DATA);
 
     	if (shmdt(tables) == -1) 

@@ -133,5 +133,5 @@ void V(int sem_id, int sem_num) {
 }
 
 void print_single_order(int id) {
-	printf("wybiera: %s w cenie %lf!\n", menu[id].dish_name, menu[id].price);
+	printf("wybiera: %s w cenie %.2lf!\n", menu[id].dish_name, menu[id].price);
 }

@@ -112,7 +112,7 @@ int main(int argc, char* argv[]) {
 			perror("Manager: nie udalo sie odpalic procesu klienta");
 			exit(1);
 		}
-		sleep(rand() % 10 + 5);
+		sleep(4);
 	}
 
 	while (wait(NULL) > 0);
@@ -145,8 +145,6 @@ int arg_checker(int argc, char* argv[]) {
 }
 
 void fire_signal_handler(int sig) {
-	if (sig == SIGUSR1) {
+	if (sig == SIGUSR1) 
 		fire_alarm = 1;		
-	}
-	printf("Manager: otrzymano sygnal");
 }
