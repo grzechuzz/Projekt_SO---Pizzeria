@@ -18,10 +18,12 @@ void fire_signal_handler(int sig);
 
 int main(int argc, char* argv[]) {
        	int table_count = arg_checker(argc, argv);
+	int manager_id = getpid();
 	srand(time(NULL));
 
 	// Obsluga sygnalu dla menedzera
 	struct sigaction sa;
+	memset(&sa, 0, sizeof(struct sigaction));
 	sa.sa_handler = fire_signal_handler;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;
@@ -30,8 +32,6 @@ int main(int argc, char* argv[]) {
 		perror("sigaction error [manager]");
 		exit(1);
 	}
-
-
 
 	// Tworzenie + odpalanie kasjera c;
 	pid_t cashier_id = fork();
@@ -54,6 +54,20 @@ int main(int argc, char* argv[]) {
 		perror("blad fork() [tworzenie strazaka]");
 		exit(1);
 	}
+
+	 if (fireman_id == 0) {
+                char pid_cashier[50];
+                char pid_manager[50];
+                char table_cnt[50];
+
+                snprintf(pid_cashier, sizeof(pid_cashier), "%d", cashier_id);
+                snprintf(pid_manager, sizeof(pid_manager), "%d", manager_id);
+                snprintf(table_cnt, sizeof(table_cnt), "%d", table_count);
+
+                execl("./fireman", "fireman", pid_cashier, pid_manager, table_cnt, NULL);
+                perror("Manager: nie udalo sie odpalic procesu strazaka");
+                exit(1);
+        }
 
 	// Dostep do semaforow + pamieci dzielonej
 
@@ -80,26 +94,11 @@ int main(int argc, char* argv[]) {
 		
 	// TODO - task z pameicia dzielona dla managera
 	
-
-	if (fireman_id == 0) {
-		char pid_cashier[50];
-		char pid_manager[50];
-		char table_cnt[50];
-
-		snprintf(pid_cashier, sizeof(pid_cashier), "%d", cashier_id);
-		snprintf(pid_manager, sizeof(pid_manager), "%d", getpid());
-		snprintf(table_cnt, sizeof(table_cnt), "%d", table_count);
-
-		execl("./fireman", "fireman", pid_cashier, pid_manager, table_cnt, NULL);
-		perror("Manager: nie udalo sie odpalic procesu strazaka");
-		exit(1);		
-	}
 	
 	// Tworzenie klientow
 	while (kill(cashier_id, 0) == 0 && !fire_alarm) {
 		char group_size[50];
 		int size = rand() % 3 + 1;
-		int random_num = rand() % 20 + 10;
 		snprintf(group_size, sizeof(group_size), "%d", size);
 
 		pid_t client_id = fork();
@@ -113,15 +112,15 @@ int main(int argc, char* argv[]) {
 			perror("Manager: nie udalo sie odpalic procesu klienta");
 			exit(1);
 		}
-		sleep(random_num);
+		sleep(rand() % 10 + 5);
 	}
 
 	while (wait(NULL) > 0);
 
 	remove_shm(shm_id, tables);
 	remove_sem(sem_id);
-	
-	printf("Manager: zwalniam zasoby, konczymy zabawe!");
+
+	printf("Manager: konczymy zabawe!\n");
 
 	return 0;
 }
@@ -146,6 +145,8 @@ int arg_checker(int argc, char* argv[]) {
 }
 
 void fire_signal_handler(int sig) {
-	if (sig == SIGUSR1)
-		fire_alarm = 1;
+	if (sig == SIGUSR1) {
+		fire_alarm = 1;		
+	}
+	printf("Manager: otrzymano sygnal");
 }
