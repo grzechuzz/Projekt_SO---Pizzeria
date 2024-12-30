@@ -28,6 +28,7 @@ int main(int argc, char* argv[]) {
 	int table_count = x1 + x2 + x3 + x4;
 		
 	setbuf(stdout, NULL);
+
 	// Do obslugi sygnalu
 	struct sigaction sa;
 	sa.sa_handler = fire_signal_handler;
@@ -85,22 +86,25 @@ int main(int argc, char* argv[]) {
 		msg.table_number = -1;
 	
 		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), 1, 0) == -1) {
+			if (fire_alarm) 
+				break;
 			perror("Blad odbierania komunikatu w msgrcv()");
 			exit(1);
 		}
 		
 		if (msg.action == TABLE_RESERVATION) {
 			P(sem_id, SEM_MUTEX_TABLES_DATA);
+			sleep(2);
 			int table_num = find_table(tables, msg.group_size, table_count);
 			if (table_num == -1) {
 				printf("Kasjer: nie znaleziono stolikow dla grupy (%d) %d-osobowej.\n", msg.group_id, msg.group_size);
 			} else { 
 				tables[table_num].current += msg.group_size;
 				tables[table_num].group_size = msg.group_size;
-				int group = 0;
-				while (group < 4 && tables[table_num].group_id[group] != 0)
-					group++;
-				tables[table_num].group_id[group] = msg.group_id;
+				int idx = 0;
+				while (idx < 4 && tables[table_num].group_id[idx] != 0)
+					idx++;
+				tables[table_num].group_id[idx] = msg.group_id;
 				printf("Kasjer: stolik nr %d przydzielony dla grupy (%d) %d-osobowej.\n", table_num, msg.group_id, msg.group_size);
 			}
 			V(sem_id, SEM_MUTEX_TABLES_DATA);
@@ -131,11 +135,15 @@ int main(int argc, char* argv[]) {
 		}
 
 	}
+
 	
 	if (fire_alarm == 1)
-		printf("Kasjer: POZAR! Zamykam natychmiast kase i szybko generuje raport!\n");
+		printf("Kasjer: POZAR! Zaraz zamykam kase i szybko generuje raport!\n");
 	else 
-		printf("Kasjer: zamykam kase i generuje raport!\n");
+		printf("Kasjer: Zamykam kase i generuje raport!\n");
+
+	sleep(2);
+	printf("Kasjer: Zamykam kase i uciekam!!!\n");
 
 	generate_report(dishes_count, total_income);
 	remove_msg(msg_id);
@@ -171,7 +179,7 @@ void generate_report(int* dishes_count, double total_income) {
 	
 	
 	printf("----------RAPORT ZA DZIEN %s----------\n", date);
-	printf("Calkowity przychod: %lf zl\n", total_income);
+	printf("Calkowity przychod: %.2lf zl\n", total_income);
 	printf("Sprzedano:\n");
 	for (int i = 0; i < 10; ++i) 
 		printf("%s: %d\n", menu[i].dish_name, dishes_count[i]);
@@ -191,7 +199,7 @@ void generate_report(int* dishes_count, double total_income) {
 	}
 	
 	char income_line[100];
-	snprintf(income_line, sizeof(income_line), "Calkowity przychod: %lf zl", total_income);
+	snprintf(income_line, sizeof(income_line), "Calkowity przychod: %.2lf zl", total_income);
 	if (write(file, income_line, strlen(income_line)) == -1) {
 		perror("Blad zapisu do pliku\n");
 		close(file);
@@ -199,7 +207,7 @@ void generate_report(int* dishes_count, double total_income) {
 	}
 
 	char sold_header[] = "Sprzedano:\n";
-	if (write(file, sold_header, strlen(sold_header)) == -1) {
+	if (write(file, sold_header, strlen(sold_header) + 1) == -1) {
 		perror("Blad zapisu do pliku!\n");
 		close(file);
 		exit(1);
