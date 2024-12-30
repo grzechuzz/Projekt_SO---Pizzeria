@@ -9,10 +9,7 @@
 #include "helper.h"
 
 int main(int argc, char* argv[]) {
-	if (argc != 4) {
-        	fprintf(stderr, "Bledna liczba argumentow. Poprawne uzycie: fireman <pid_kasjera> <pid_managera> <liczba stolikow>\n");
-        	exit(1);
-    	}
+	setbuf(stdout, NULL);
 
     	pid_t pid_cashier = (pid_t)atoi(argv[1]);
     	pid_t pid_manager = (pid_t)atoi(argv[2]);
@@ -41,7 +38,6 @@ int main(int argc, char* argv[]) {
 
     	sleep(rand() % 15 + 100);
     	printf("Strazak: POZAR!!!\n");
-	fflush(stdout);
 
 
     	// Sygnaly pozarow do klientow przy stole, menadzera i kasjera
