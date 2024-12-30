@@ -10,6 +10,8 @@
 #define TABLE_RESERVATION 1
 #define ORDER 2
 #define TABLE_EXIT 3
+#define TABLE_NOT_FOUND -1
+#define CLOSING_SOON -2
 
 
 typedef struct {

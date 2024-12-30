@@ -14,11 +14,12 @@
 #include "helper.h"
 
 volatile sig_atomic_t fire_alarm = 0;
+volatile sig_atomic_t closing_soon = 0;
 
 void initialize_tables(Table* tables, int start, int end, int capacity);
 int find_table(Table* tables, int group_size, int table_count);
 void generate_report(int* dishes_count, double total_income); 
-void fire_signal_handler(int sig);
+void signals_handler(int sig);
 
 int main(int argc, char* argv[]) {
         int x1 = atoi(argv[1]);
@@ -31,7 +32,7 @@ int main(int argc, char* argv[]) {
 
 	// Do obslugi sygnalu
 	struct sigaction sa;
-	sa.sa_handler = fire_signal_handler;
+	sa.sa_handler = signals_handler;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;
 
@@ -95,9 +96,11 @@ int main(int argc, char* argv[]) {
 		if (msg.action == TABLE_RESERVATION) {
 			P(sem_id, SEM_MUTEX_TABLES_DATA);
 			sleep(2);
-			int table_num = find_table(tables, msg.group_size, table_count);
-			if (table_num == -1) {
+			int table_num = find_table(tables, msg.group_size, table_count); 
+			if (table_num == TABLE_NOT_FOUND) {
 				printf("Kasjer: nie znaleziono stolikow dla grupy (%d) %d-osobowej.\n", msg.group_id, msg.group_size);
+			} else if (table_num == CLOSING_SOON) {
+				printf("Kasjer: Grupo (%d), przykro mi, ale zaraz zamykamy, nie przydzielam stolika.\n", msg.group_id); 
 			} else { 
 				tables[table_num].current += msg.group_size;
 				tables[table_num].group_size = msg.group_size;
@@ -133,19 +136,18 @@ int main(int argc, char* argv[]) {
 				tables[msg.table_number].group_size = 0;		
 			V(sem_id, SEM_MUTEX_TABLES_DATA);
 		}
-
 	}
 
+	generate_raport(dishes_count, total_income);
 	
-	if (fire_alarm == 1)
+	if (fire_alarm == 1) {
 		printf("Kasjer: POZAR! Zaraz zamykam kase i szybko generuje raport!\n");
-	else 
+		sleep(2);
+		printf("Kasjer: Kasa zamknieta! Uciekam!!!\n");
+	} else {
 		printf("Kasjer: Zamykam kase i generuje raport!\n");
+	}
 
-	sleep(2);
-	printf("Kasjer: Zamykam kase i uciekam!!!\n");
-
-	generate_report(dishes_count, total_income);
 	remove_msg(msg_id);
 
 	return 0;
@@ -163,12 +165,16 @@ void initialize_tables(Table* tables, int start, int end, int capacity) {
 }
 
 int find_table(Table* tables, int group_size, int table_count) {
+	if (closing_soon)
+		return CLOSING_SOON;
+
 	for (int i = 0; i < table_count; ++i) {
 		if ((tables[i].group_size == 0 || tables[i].group_size == group_size) &&
 		   ((tables[i].capacity - tables[i].current - group_size >= 0)))
 		   	return i;
 	}
-	return -1;
+
+	return TABLE_NOT_FOUND;
 }
 
 void generate_report(int* dishes_count, double total_income) {
@@ -177,14 +183,7 @@ void generate_report(int* dishes_count, double total_income) {
 	char date[20];
 	strftime(date, sizeof(date), "%Y-%m-%d", local_time);
 	
-	
-	printf("----------RAPORT ZA DZIEN %s----------\n", date);
-	printf("Calkowity przychod: %.2lf zl\n", total_income);
-	printf("Sprzedano:\n");
-	for (int i = 0; i < 10; ++i) 
-		printf("%s: %d\n", menu[i].dish_name, dishes_count[i]);
-	
-	int file = open("reports.txt", O_WRONLY | O_CREAT | O_APPEND, 0644);
+	int file = open("reports.txt", O_WRONLY | O_CREAT, 0644);
 	if (file == -1) {
 		perror("Blad otwarcia pliku!\n");
 		exit(1);
@@ -199,7 +198,7 @@ void generate_report(int* dishes_count, double total_income) {
 	}
 	
 	char income_line[100];
-	snprintf(income_line, sizeof(income_line), "Calkowity przychod: %.2lf zl", total_income);
+	snprintf(income_line, sizeof(income_line), "Calkowity przychod: %.2lf zl\n", total_income);
 	if (write(file, income_line, strlen(income_line)) == -1) {
 		perror("Blad zapisu do pliku\n");
 		close(file);
@@ -207,7 +206,7 @@ void generate_report(int* dishes_count, double total_income) {
 	}
 
 	char sold_header[] = "Sprzedano:\n";
-	if (write(file, sold_header, strlen(sold_header) + 1) == -1) {
+	if (write(file, sold_header, strlen(sold_header)) == -1) {
 		perror("Blad zapisu do pliku!\n");
 		close(file);
 		exit(1);
@@ -226,8 +225,9 @@ void generate_report(int* dishes_count, double total_income) {
 	close(file);
 } 
 
-void fire_signal_handler(int sig) {
+void signals_handler(int sig) {
 	if (sig == SIGUSR1)
 		fire_alarm = 1;
-	
+	else if (sig == SIGUSR2)
+		closing_soon = 1;
 }
