@@ -77,7 +77,10 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 
-	int* orders = calloc(n, sizeof(int));
+	int* orders = malloc(n * sizeof(int));
+	for (int i = 0; i < n; ++i)
+		orders[i] = -1;
+
 	pthread_t* tids = calloc(n, sizeof(pthread_t));
 
 	ClientOrders co_d;
@@ -112,8 +115,7 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 
-	printf("Grupa klientow (%d) %d-osobowa: Skladamy zamowienie na laczna kwote %lf.\n", getpid(), n, total_price);
-	printf("Grupa klientow (%d) %d-osobowa: Siadamy z naszym zamowieniem przy stoliku nr %d\n", getpid(), n, msg.table_number);
+	printf("Grupa klientow (%d) %d-osobowa: Skladamy zamowienie na laczna kwote %.2lf zl. Siadamy z nim przy stoliku nr %d.\n", getpid(), n, total_price, msg.table_number);
 
 	// Jedzenie
 	sleep(15);
