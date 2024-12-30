@@ -56,18 +56,21 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	} 
 
-	// Odbior komunikatu przez klientow, maja stolik lub nie
+	// Odbior komunikatu przez klientow czy jest wolny stolik czy nie
 	if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), getpid(), 0) == -1) {
 		perror("Blad odbierania komunikatu w msgrcv()");
 		exit(1);
 	}
 
-	if (msg.table_number == -1) {
-		printf("Grupa klientow (%d) %d-osobowa: nie chce sie nam czekac, wychodzimy z lokalu.\n", getpid(), n);
+	if (msg.table_number == TABLE_NOT_FOUND) {
+		printf("Grupa klientow (%d) %d-osobowa: Nie chce sie nam czekac, wychodzimy z lokalu.\n", getpid(), n);
 		exit(0);
-	} 
+	} else if (msg.table_number == CLOSING_SOON) {
+		printf("Grupa kilentow (%d) %d-osobowa: Szkoda, sprobujemy ponownie jutro!\n", getpid(), n);
+		exit(0);
+	}
 
-	// Obsluga zamowienia ze strony klientow
+	// Skladanie zamowienia (siadziemy przy stole dopiero, gdy zamowimy :D)
 	for (int i = 0; i < 3; ++i) 
 		msg.dishes[i] = -1;
 	
