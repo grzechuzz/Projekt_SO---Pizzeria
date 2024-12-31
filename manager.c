@@ -19,11 +19,12 @@ void fire_signal_handler(int sig);
 int main(int argc, char* argv[]) {
        	int table_count = arg_checker(argc, argv);
 	int manager_id = getpid();
+	int sigusr2_sent = 0;
 	srand(time(NULL));
+
 
 	// Obsluga sygnalu dla menedzera
 	struct sigaction sa;
-	memset(&sa, 0, sizeof(struct sigaction));
 	sa.sa_handler = fire_signal_handler;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;
@@ -91,15 +92,17 @@ int main(int argc, char* argv[]) {
 		perror("Blad podlaczenia pamieci dzielonej");
 		exit(1);
 	}
+
+	unsigned long work_time = time(NULL) + 100;
 		
 	// TODO - task z pameicia dzielona dla managera
 	
-	
+		
 	// Tworzenie klientow
-	while (kill(cashier_id, 0) == 0 && !fire_alarm) {
+	while (kill(cashier_id, 0) == 0 && !fire_alarm && (work_time > (unsigned long)time(NULL))) {
 		char group_size[50];
-		int size = rand() % 3 + 1;
-		snprintf(group_size, sizeof(group_size), "%d", size);
+		int rand_group_size = rand() % 3 + 1;
+		snprintf(group_size, sizeof(group_size), "%d", rand_group_size);
 
 		pid_t client_id = fork();
 		if (client_id == -1) {
@@ -112,7 +115,25 @@ int main(int argc, char* argv[]) {
 			perror("Manager: nie udalo sie odpalic procesu klienta");
 			exit(1);
 		}
-		sleep(4);
+
+		int rand_time = rand() % 8 + 5; // Przyjscie klienta [czekamy co najmniej 5 sek, max 12 sek]
+		
+		if (!sigusr2_sent && (work_time - 30 < (unsigned long)time(NULL))) {
+			sigusr2_sent = 1;
+			printf("Manager: Kasjer, sluchaj niedlugo zamykamy, nie wpuszczaj juz klientow.\n");
+			if (kill(cashier_id, SIGUSR2) == 1) {
+				perror("Nie udalo sie wyslac SIGUSR2 do kasjera!");
+				exit(1);
+			}
+		}
+	
+		sleep(rand_time);
+	}
+
+	if (kill(cashier_id, 0) != 0) {
+		if (kill(fireman_id, SIGTERM) == -1) {
+			perror("Nie udalo sie wyslac SIGTERM do strazaka!");
+		}
 	}
 
 	while (wait(NULL) > 0);
