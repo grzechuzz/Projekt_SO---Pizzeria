@@ -121,7 +121,7 @@ int main(int argc, char* argv[]) {
 	printf("Grupa klientow (%d) %d-osobowa: Skladamy zamowienie na laczna kwote %.2lf zl. Siadamy z nim przy stoliku nr %d.\n", getpid(), n, total_price, msg.table_number);
 
 	// Jedzenie
-	sleep(15);
+	sleep(18);
 
 	// Opuszczanie stolika 
 	msg.mtype = 1;
