@@ -6,10 +6,23 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/types.h>
+#include <signal.h>
 #include "helper.h"
+
+void signal_handler(int sig);
 
 int main(int argc, char* argv[]) {
 	setbuf(stdout, NULL);
+	
+	struct sigaction sa;
+	sa.sa_handler = signal_handler;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+
+	if (sigaction(SIGTERM, &sa, NULL) == -1) {
+		perror("Blad ustawienia SIGTERM");
+		exit(1);
+	}
 
     	pid_t pid_cashier = (pid_t)atoi(argv[1]);
     	pid_t pid_manager = (pid_t)atoi(argv[2]);
@@ -36,7 +49,7 @@ int main(int argc, char* argv[]) {
         	exit(1);
     	}
 
-    	sleep(rand() % 15 + 30);
+    	sleep(rand() % 80 + 80);
     	printf("Strazak: POZAR!!!\n");
 
 
@@ -67,3 +80,10 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
+
+void signal_handler(int sig) {
+	if (sig == SIGTERM) {
+		printf("Strazak: Nie jestem juz potrzebny. Opuszczam lokal!\n");
+		exit(0);
+	}
+}
