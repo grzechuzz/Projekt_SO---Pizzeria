@@ -11,10 +11,13 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <limits.h>
+#include <errno.h>
 #include "helper.h"
 
 volatile sig_atomic_t fire_alarm = 0;
 volatile sig_atomic_t closing_soon = 0;
+volatile unsigned long work_time = ULONG_MAX;
 
 void initialize_tables(Table* tables, int start, int end, int capacity);
 int find_table(Table* tables, int group_size, int table_count);
@@ -37,6 +40,11 @@ int main(int argc, char* argv[]) {
 	sa.sa_flags = 0;
 
 	if (sigaction(SIGUSR1, &sa, NULL) == -1) {
+		perror("Blad sigaction() [kasjer]");
+		exit(1);
+	}
+
+	if (sigaction(SIGUSR2, &sa, NULL) == -1) {
 		perror("Blad sigaction() [kasjer]");
 		exit(1);
 	}
@@ -82,15 +90,17 @@ int main(int argc, char* argv[]) {
 
 	printf("Kasjer: otwieram kase!\n");
 
-	while(!fire_alarm) {
+	while(!fire_alarm && ((unsigned long)time(NULL) < work_time)) {
 		CashierClientComm msg; 
 		msg.table_number = -1;
 	
-		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), 1, 0) == -1) {
-			if (fire_alarm) 
-				break;
-			perror("Blad odbierania komunikatu w msgrcv()");
-			exit(1);
+		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), 1, IPC_NOWAIT) == -1) {
+			if (errno == ENOMSG)
+				continue;
+			else {
+				perror("Blad odbierania komunikatu w msgrcv()");
+				exit(1);
+			}
 		}
 		
 		if (msg.action == TABLE_RESERVATION) {
@@ -138,7 +148,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	generate_raport(dishes_count, total_income);
+	generate_report(dishes_count, total_income);
 	
 	if (fire_alarm == 1) {
 		printf("Kasjer: POZAR! Zaraz zamykam kase i szybko generuje raport!\n");
@@ -189,8 +199,7 @@ void generate_report(int* dishes_count, double total_income) {
 		exit(1);
 	}
 
-	char header_line[100];
-	snprintf(header_line, sizeof(header_line), "----------RAPORT ZA DZIEN %s----------\n", date);
+	char header_line[] = "-------------RAPORT DZIENNY--------------\n";
        	if (write(file, header_line, strlen(header_line)) == -1) {
 		perror("Blad zapisu do pliku!\n");
 		close(file);
@@ -222,12 +231,17 @@ void generate_report(int* dishes_count, double total_income) {
 		}	
 	}
 
+
+
 	close(file);
-} 
+}
 
 void signals_handler(int sig) {
 	if (sig == SIGUSR1)
 		fire_alarm = 1;
-	else if (sig == SIGUSR2)
+	else if (sig == SIGUSR2) {
 		closing_soon = 1;
+		work_time = (unsigned long)time(NULL) + 35;
+	}
 }
+
