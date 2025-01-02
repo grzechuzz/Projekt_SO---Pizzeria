@@ -13,7 +13,8 @@ void signal_handler(int sig);
 
 int main(int argc, char* argv[]) {
 	setbuf(stdout, NULL);
-	
+	srand(time(NULL));
+
 	struct sigaction sa;
 	sa.sa_handler = signal_handler;
 	sigemptyset(&sa.sa_mask);
@@ -48,8 +49,7 @@ int main(int argc, char* argv[]) {
         	perror("Blad podlaczenia pamieci dzielonej");
         	exit(1);
     	}
-
-    	sleep(rand() % 80 + 80);
+    	sleep(40);
     	printf("Strazak: POZAR!!!\n");
 
 

@@ -241,7 +241,7 @@ void signals_handler(int sig) {
 		fire_alarm = 1;
 	else if (sig == SIGUSR2) {
 		closing_soon = 1;
-		work_time = (unsigned long)time(NULL) + 35;
+		work_time = (unsigned long)time(NULL) + 22;
 	}
 }
 
