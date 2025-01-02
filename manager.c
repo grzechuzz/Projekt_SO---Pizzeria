@@ -93,14 +93,11 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 
-	unsigned long work_time = time(NULL) + 100;
-		
-	// TODO - task z pameicia dzielona dla managera
-	
+	unsigned long work_time = time(NULL) + 90;
 		
 	// Tworzenie klientow
-	while (kill(cashier_id, 0) == 0 && !fire_alarm && (work_time > (unsigned long)time(NULL))) {
-		char group_size[50];
+	while (!fire_alarm && (work_time > (unsigned long)time(NULL))) {
+		char group_size[5];
 		int rand_group_size = rand() % 3 + 1;
 		snprintf(group_size, sizeof(group_size), "%d", rand_group_size);
 
@@ -118,10 +115,10 @@ int main(int argc, char* argv[]) {
 
 		int rand_time = rand() % 8 + 5; // Przyjscie klienta [czekamy co najmniej 5 sek, max 12 sek]
 		
-		if (!sigusr2_sent && (work_time - 30 < (unsigned long)time(NULL))) {
+		if (!sigusr2_sent && (work_time - 20 < (unsigned long)time(NULL))) {
 			sigusr2_sent = 1;
 			printf("Manager: Kasjer, sluchaj niedlugo zamykamy, nie wpuszczaj juz klientow.\n");
-			if (kill(cashier_id, SIGUSR2) == 1) {
+			if (kill(cashier_id, SIGUSR2) == -1) {
 				perror("Nie udalo sie wyslac SIGUSR2 do kasjera!");
 				exit(1);
 			}
@@ -129,6 +126,10 @@ int main(int argc, char* argv[]) {
 	
 		sleep(rand_time);
 	}
+
+	pid_t pid = waitpid(cashier_id, NULL, 0);
+	if (pid == -1)
+		perror("Blad waitpid");
 
 	if (kill(cashier_id, 0) != 0) {
 		if (kill(fireman_id, SIGTERM) == -1) {
@@ -141,7 +142,9 @@ int main(int argc, char* argv[]) {
 	remove_shm(shm_id, tables);
 	remove_sem(sem_id);
 
-	printf("Manager: konczymy zabawe!\n");
+	// TODO - odczyt raportu z pliku
+
+	printf("Manager: konczymy!\n");
 
 	return 0;
 }
