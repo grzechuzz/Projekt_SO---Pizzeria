@@ -23,6 +23,7 @@ void initialize_tables(Table* tables, int start, int end, int capacity);
 int find_table(Table* tables, int group_size, int table_count);
 void generate_report(int* dishes_count, double total_income); 
 void signals_handler(int sig);
+void tables_status(Table* tables, int table_count);
 
 int main(int argc, char* argv[]) {
         int x1 = atoi(argv[1]);
@@ -120,6 +121,7 @@ int main(int argc, char* argv[]) {
 				tables[table_num].group_id[idx] = msg.group_id;
 				printf("Kasjer: stolik nr %d przydzielony dla grupy (%d) %d-osobowej.\n", table_num, msg.group_id, msg.group_size);
 			}
+			tables_status(tables, table_count);
 			V(sem_id, SEM_MUTEX_TABLES_DATA);
 
 			msg.table_number = table_num;
@@ -188,12 +190,7 @@ int find_table(Table* tables, int group_size, int table_count) {
 }
 
 void generate_report(int* dishes_count, double total_income) {
-	time_t now = time(NULL);
-	struct tm* local_time = localtime(&now);
-	char date[20];
-	strftime(date, sizeof(date), "%Y-%m-%d", local_time);
-	
-	int file = open("reports.txt", O_WRONLY | O_CREAT, 0644);
+	int file = open("reports.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (file == -1) {
 		perror("Blad otwarcia pliku!\n");
 		exit(1);
@@ -231,8 +228,6 @@ void generate_report(int* dishes_count, double total_income) {
 		}	
 	}
 
-
-
 	close(file);
 }
 
@@ -245,3 +240,17 @@ void signals_handler(int sig) {
 	}
 }
 
+void tables_status(Table* tables, int table_count) {
+	printf("\n");
+	printf("-------------STATUS STOLIKOW--------------\n");
+	for (int i = 0; i < table_count; ++i) {
+		printf("Stol nr: %d | pojemnosc=%d | obecnie=%d | rozmiar grupy=%d | group_id=[", i, tables[i].capacity, tables[i].current, tables[i].group_size);
+		for (int j = 0; j < 4; ++j) {
+			if (tables[i].group_id[j] != 0) {
+				printf("%d ", tables[i].group_id[j]);
+			}
+		}
+		printf("]\n");
+	}
+	printf("------------------------------------------\n\n");
+}
