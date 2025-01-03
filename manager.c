@@ -9,12 +9,14 @@
 #include <sys/sem.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <fcntl.h>
 #include "helper.h"
 
 volatile sig_atomic_t fire_alarm = 0;
 
 int arg_checker(int argc, char* argv[]);
 void fire_signal_handler(int sig);
+void read_report();
 
 int main(int argc, char* argv[]) {
        	int table_count = arg_checker(argc, argv);
@@ -113,7 +115,7 @@ int main(int argc, char* argv[]) {
 			exit(1);
 		}
 
-		int rand_time = rand() % 8 + 5; // Przyjscie klienta [czekamy co najmniej 5 sek, max 12 sek]
+		int rand_time = rand() % 5 + 3; // Przyjscie klienta [czekamy co najmniej 3 sek, max 7 sek]
 		
 		if (!sigusr2_sent && (work_time - 20 < (unsigned long)time(NULL))) {
 			sigusr2_sent = 1;
@@ -144,7 +146,9 @@ int main(int argc, char* argv[]) {
 
 	// TODO - odczyt raportu z pliku
 
-	printf("Manager: konczymy!\n");
+	printf("Manager: Odczytuje raport...\n");
+	sleep(1);
+	read_report();
 
 	return 0;
 }
@@ -171,4 +175,26 @@ int arg_checker(int argc, char* argv[]) {
 void fire_signal_handler(int sig) {
 	if (sig == SIGUSR1) 
 		fire_alarm = 1;		
+}
+
+void read_report() {
+	int file = open("reports.txt", O_RDONLY);
+	if (file == -1) {
+		perror("Blad otwierania pliku.");
+		return;
+	}
+
+	char buffer[256];
+	int bytes_read;
+
+	while ((bytes_read = read(file, buffer, sizeof(buffer) - 1)) > 0) {
+		buffer[bytes_read] = '\0';
+		printf("%s", buffer);
+	}
+
+	if (bytes_read == -1) {
+		perror("Blad odczytu z pliku");
+	}
+
+	close(file);
 }
