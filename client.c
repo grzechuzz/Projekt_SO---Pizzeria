@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
 	int msg_id = join_msg(msg_key);
 
 	int n = atoi(argv[1]);
-	printf("Grupa klientow (%d) %d-osobowa: zglaszamy zapotrzebowanie na stolik.\n", getpid(), n);
+	printf("\033[36mGrupa klientow (%d) %d-osobowa: zglaszamy zapotrzebowanie na stolik.\033[0m\n", getpid(), n);
 
 	CashierClientComm msg;
 	msg.mtype = 1;
@@ -60,17 +60,17 @@ int main(int argc, char* argv[]) {
 	// Odbior komunikatu przez klientow czy jest wolny stolik czy nie
 	if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), getpid(), 0) == -1) {
 		if (errno == EIDRM) 
-			printf("Grupa klientow (%d) %d-osobowa: Niestety lokal jest juz zamkniety, wracamy do domu.\n", getpid(), n);
+			printf("\033[36mGrupa klientow (%d) %d-osobowa: Niestety lokal jest juz zamkniety, wracamy do domu.\033[0m\n", getpid(), n);
 		else
 			perror("Blad odbierania komunikatu w msgrcv()");
 		exit(1);
 	}
 
 	if (msg.table_number == TABLE_NOT_FOUND) {
-		printf("Grupa klientow (%d) %d-osobowa: Nie chce sie nam czekac, wychodzimy z lokalu.\n", getpid(), n);
+		printf("\033[36mGrupa klientow (%d) %d-osobowa: Nie chce sie nam czekac, wychodzimy z lokalu.\033[0m\n", getpid(), n);
 		exit(0);
 	} else if (msg.table_number == CLOSING_SOON) {
-		printf("Grupa kilentow (%d) %d-osobowa: Szkoda, sprobujemy ponownie jutro!\n", getpid(), n);
+		printf("\033[36mGrupa kilentow (%d) %d-osobowa: Szkoda, sprobujemy ponownie jutro.\033[0m\n", getpid(), n);
 		exit(0);
 	}
 
@@ -122,7 +122,7 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 
-	printf("Grupa klientow (%d) %d-osobowa: Skladamy zamowienie na laczna kwote %.2lf zl. Siadamy z nim przy stoliku nr %d.\n", getpid(), n, total_price, msg.table_number);
+	printf("\033[36mGrupa klientow (%d) %d-osobowa: Skladamy zamowienie na laczna kwote %.2lf zl. Siadamy z nim przy stoliku nr %d.\033[0m\n", getpid(), n, total_price, msg.table_number);
 
 	// Jedzenie
 	sleep(5);
@@ -134,7 +134,7 @@ int main(int argc, char* argv[]) {
 		perror("Blad wysylania komunikatu w msgsnd()");
 		exit(1);	
 	}
-	printf("Grupa kilentow (%d) %d-osobowa: Opuszczamy stolik nr %d.\n", getpid(), n, msg.table_number);
+	printf("\033[36mGrupa kilentow (%d) %d-osobowa: Opuszczamy stolik nr %d.\033[0m\n", getpid(), n, msg.table_number);
 
 
 	pthread_mutex_destroy(&mutex);
@@ -166,7 +166,7 @@ void* single_person_order(void* orders) {
 	while (x < co->size && co->orders[x] != -1)
 		++x;
 	co->orders[x] = rand() % 10;
-	printf("Grupa klientow (%d): Osoba %lu ", getpid(), pthread_self());
+	printf("\033[36mGrupa klientow (%d): Osoba %lu ", getpid(), pthread_self());
 	print_single_order(co->orders[x]);
 	pthread_mutex_unlock(&mutex);
 	
@@ -175,7 +175,7 @@ void* single_person_order(void* orders) {
 
 void fire_signal_handler(int sig) {
 	if (sig == SIGUSR1) {
-		printf("Grupa klientow (%d): Pali sie! UCIEKAMY!!111\n", getpid());
+		printf("\033[36mGrupa klientow (%d): Pali sie! UCIEKAMY!!!!!!!\033[0m\n", getpid());
 		exit(0);
 	}
 }

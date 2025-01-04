@@ -24,7 +24,7 @@ Dish menu[10] = {
 
 
 int create_sem(key_t key) {
-	int sem_id = semget(key, 1, IPC_CREAT|0644);
+	int sem_id = semget(key, 1, IPC_CREAT|0600);
 	if (sem_id == -1) {
 		perror("blad w semget()");
 		exit(1);
@@ -39,7 +39,7 @@ int create_sem(key_t key) {
 }
 
 int create_shm(key_t key, size_t size) {
-	int shm_id = shmget(key, size, IPC_CREAT|0644);
+	int shm_id = shmget(key, size, IPC_CREAT|0600);
 	if (shm_id == -1) {
 		perror("blad w shmget()");
 	}
@@ -48,7 +48,7 @@ int create_shm(key_t key, size_t size) {
 }
 
 int create_msg(key_t key) {
-	int msg_id = msgget(key, IPC_CREAT|0644);
+	int msg_id = msgget(key, IPC_CREAT|0600);
 	if (msg_id == -1) {
 		perror("blad w msgget()");
 		exit(1);
@@ -133,5 +133,5 @@ void V(int sem_id, int sem_num) {
 }
 
 void print_single_order(int id) {
-	printf("wybiera: %s w cenie %.2lf zl!\n", menu[id].dish_name, menu[id].price);
+	printf("\033[36mwybiera: %s w cenie %.2lf zl!\033[0m\n", menu[id].dish_name, menu[id].price);
 }

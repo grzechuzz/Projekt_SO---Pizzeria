@@ -12,6 +12,11 @@
 void signal_handler(int sig);
 
 int main(int argc, char* argv[]) {
+	
+	if (argc != 4) {
+		perror("Bledna liczba argumentow. Poprawne uzycie ./fireman <pid_kasjera> <pid_managera> <ilosc stolikow>");
+	}
+
 	setbuf(stdout, NULL);
 	srand(time(NULL));
 
@@ -49,8 +54,8 @@ int main(int argc, char* argv[]) {
         	perror("Blad podlaczenia pamieci dzielonej");
         	exit(1);
     	}
-    	sleep(40 + (rand() % 100));
-    	printf("Strazak: POZAR!!!\n");
+    	sleep(40);
+    	printf("\033[41mStrazak: POZAR!!!\033[0m\n");
 
 
     	// Sygnaly pozarow do klientow przy stole, menadzera i kasjera
@@ -83,7 +88,7 @@ int main(int argc, char* argv[]) {
 
 void signal_handler(int sig) {
 	if (sig == SIGTERM) {
-		printf("Strazak: Nie jestem juz potrzebny. Opuszczam lokal!\n");
+		printf("\033[31mStrazak: Nie jestem juz potrzebny. Opuszczam lokal!\033[0m\n");
 		exit(0);
 	}
 }

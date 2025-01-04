@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
 	int dishes_count[10] = {0};
 	double total_income = 0.0;
 	int client_count = 0;
-	printf("Kasjer: otwieram kase!\n");
+	printf("\033[32mKasjer: otwieram kase!\033[0m\n");
 
 	while(!fire_alarm && ((unsigned long)time(NULL) < work_time)) {
 		CashierClientComm msg; 
@@ -109,9 +109,9 @@ int main(int argc, char* argv[]) {
 			sleep(1);
 			int table_num = find_table(tables, msg.group_size, table_count); 
 			if (table_num == TABLE_NOT_FOUND) {
-				printf("Kasjer: nie znaleziono stolikow dla grupy (%d) %d-osobowej.\n", msg.group_id, msg.group_size);
+				printf("\033[32mKasjer: nie znaleziono stolikow dla grupy (%d) %d-osobowej.\033[0m\n", msg.group_id, msg.group_size);
 			} else if (table_num == CLOSING_SOON) {
-				printf("Kasjer: Grupo (%d), przykro mi, ale zaraz zamykamy, nie przydzielam stolika.\n", msg.group_id); 
+				printf("\033[32mKasjer: Grupo (%d), przykro mi, ale zaraz zamykamy, nie przydzielam stolika.\033[0m\n", msg.group_id); 
 			} else { 
 				tables[table_num].current += msg.group_size;
 				tables[table_num].group_size = msg.group_size;
@@ -119,7 +119,7 @@ int main(int argc, char* argv[]) {
 				while (idx < 4 && tables[table_num].group_id[idx] != 0)
 					idx++;
 				tables[table_num].group_id[idx] = msg.group_id;
-				printf("Kasjer: stolik nr %d przydzielony dla grupy (%d) %d-osobowej.\n", table_num, msg.group_id, msg.group_size);
+				printf("\033[32mKasjer: stolik nr %d przydzielony dla grupy (%d) %d-osobowej.\033[0m\n", table_num, msg.group_id, msg.group_size);
 			}
 			V(sem_id, SEM_MUTEX_TABLES_DATA);
 
@@ -154,11 +154,11 @@ int main(int argc, char* argv[]) {
 	generate_report(dishes_count, total_income, client_count);
 	
 	if (fire_alarm == 1) {
-		printf("Kasjer: POZAR! Zaraz zamykam kase i szybko generuje raport!\n");
+		printf("\033[32mKasjer: POZAR! Zaraz zamykam kase i szybko generuje raport!\033[0m\n");
 		sleep(2);
-		printf("Kasjer: Kasa zamknieta! Uciekam!!!\n");
+		printf("\033[32mKasjer: Kasa zamknieta! Uciekam!!!\033[0m\n");
 	} else {
-		printf("Kasjer: Zamykam kase i generuje raport!\n");
+		printf("\033[32mKasjer: Zamykam kase i generuje raport!\033[0m\n");
 	}
 
 	remove_msg(msg_id);
@@ -252,15 +252,15 @@ void signals_handler(int sig) {
 
 void tables_status(Table* tables, int table_count) {
 	printf("\n");
-	printf("-------------STATUS STOLIKOW--------------\n");
+	printf("\033[32m-------------STATUS STOLIKOW--------------\033[0m\n");
 	for (int i = 0; i < table_count; ++i) {
-		printf("Stol nr: %d | pojemnosc=%d | obecnie=%d | rozmiar grupy=%d | group_id=[", i, tables[i].capacity, tables[i].current, tables[i].group_size);
+		printf("\033[32mStol nr: %d | pojemnosc=%d | obecnie=%d | rozmiar grupy=%d | group_id=[\033[0m", i, tables[i].capacity, tables[i].current, tables[i].group_size);
 		for (int j = 0; j < 4; ++j) {
 			if (tables[i].group_id[j] != 0) {
 				printf(" %d ", tables[i].group_id[j]);
 			}
 		}
-		printf("]\n");
+		printf("\033[32m]\n\033[0m");
 	}
-	printf("------------------------------------------\n\n");
+	printf("\033[32m------------------------------------------\033[0m\n\n");
 }

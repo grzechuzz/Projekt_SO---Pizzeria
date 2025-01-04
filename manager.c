@@ -119,14 +119,14 @@ int main(int argc, char* argv[]) {
 
 		if (!sigusr2_sent && (work_time - 20 < (unsigned long)time(NULL))) {
 			sigusr2_sent = 1;
-			printf("Manager: Kasjer, sluchaj niedlugo zamykamy, nie wpuszczaj juz klientow.\n");
+			printf("\033[41mManager: Kasjer, sluchaj niedlugo zamykamy, nie wpuszczaj juz klientow.\033[0m\n");
 			if (kill(cashier_id, SIGUSR2) == -1) {
 				perror("Nie udalo sie wyslac SIGUSR2 do kasjera!");
 				exit(1);
 			}
 		}
 	
-		sleep(rand_time);
+		sleep(rand_time); // klienci przychodza co losowy czas
 	}
 
 	pid_t pid = waitpid(cashier_id, NULL, 0);
@@ -144,8 +144,7 @@ int main(int argc, char* argv[]) {
 	remove_shm(shm_id, tables);
 	remove_sem(sem_id);
 
-	printf("\n");
-	printf("Manager: Odczytuje raport...\n");
+	printf("\033[31mManager: Odczytuje raport...\033[0m\n");
 	sleep(1);
 	read_report();
 
@@ -188,7 +187,7 @@ void read_report() {
 
 	while ((bytes_read = read(file, buffer, sizeof(buffer) - 1)) > 0) {
 		buffer[bytes_read] = '\0';
-		printf("%s", buffer);
+		printf("\033[32m%s\033[0m", buffer);
 	}
 
 	if (bytes_read == -1) {
