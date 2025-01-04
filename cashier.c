@@ -21,7 +21,7 @@ volatile unsigned long work_time = ULONG_MAX;
 
 void initialize_tables(Table* tables, int start, int end, int capacity);
 int find_table(Table* tables, int group_size, int table_count);
-void generate_report(int* dishes_count, double total_income); 
+void generate_report(int* dishes_count, double total_income, int client_count); 
 void signals_handler(int sig);
 void tables_status(Table* tables, int table_count);
 
@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
 
 	int dishes_count[10] = {0};
 	double total_income = 0.0;
-
+	int client_count = 0;
 	printf("Kasjer: otwieram kase!\n");
 
 	while(!fire_alarm && ((unsigned long)time(NULL) < work_time)) {
@@ -106,7 +106,7 @@ int main(int argc, char* argv[]) {
 		
 		if (msg.action == TABLE_RESERVATION) {
 			P(sem_id, SEM_MUTEX_TABLES_DATA);
-			sleep(2);
+			sleep(1);
 			int table_num = find_table(tables, msg.group_size, table_count); 
 			if (table_num == TABLE_NOT_FOUND) {
 				printf("Kasjer: nie znaleziono stolikow dla grupy (%d) %d-osobowej.\n", msg.group_id, msg.group_size);
@@ -121,7 +121,6 @@ int main(int argc, char* argv[]) {
 				tables[table_num].group_id[idx] = msg.group_id;
 				printf("Kasjer: stolik nr %d przydzielony dla grupy (%d) %d-osobowej.\n", table_num, msg.group_id, msg.group_size);
 			}
-			tables_status(tables, table_count);
 			V(sem_id, SEM_MUTEX_TABLES_DATA);
 
 			msg.table_number = table_num;
@@ -132,10 +131,12 @@ int main(int argc, char* argv[]) {
 				exit(1);
 			}
 		} else if (msg.action == ORDER) {
+			tables_status(tables, table_count);
 			for (int i = 0; i < msg.group_size; ++i) {
 				dishes_count[msg.dishes[i]]++;
 				total_income += menu[msg.dishes[i]].price;
 			}
+			client_count += msg.group_size;
 		} else if (msg.action == TABLE_EXIT) {
 			P(sem_id, SEM_MUTEX_TABLES_DATA);
 			int x = 0;
@@ -150,7 +151,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	generate_report(dishes_count, total_income);
+	generate_report(dishes_count, total_income, client_count);
 	
 	if (fire_alarm == 1) {
 		printf("Kasjer: POZAR! Zaraz zamykam kase i szybko generuje raport!\n");
@@ -189,7 +190,7 @@ int find_table(Table* tables, int group_size, int table_count) {
 	return TABLE_NOT_FOUND;
 }
 
-void generate_report(int* dishes_count, double total_income) {
+void generate_report(int* dishes_count, double total_income, int client_count) {
 	int file = open("reports.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (file == -1) {
 		perror("Blad otwarcia pliku!\n");
@@ -202,6 +203,15 @@ void generate_report(int* dishes_count, double total_income) {
 		close(file);
 		exit(1);
 	}
+
+	
+	char client_count_line[100];
+	snprintf(client_count_line, sizeof(client_count_line), "Ilosc klientow: %d\n", client_count);
+       	if (write(file, client_count_line, strlen(client_count_line)) == -1) {
+		perror("Blad zapisu do pliku\n");
+		close(file);
+		exit(1);
+	}	
 	
 	char income_line[100];
 	snprintf(income_line, sizeof(income_line), "Calkowity przychod: %.2lf zl\n", total_income);
@@ -247,7 +257,7 @@ void tables_status(Table* tables, int table_count) {
 		printf("Stol nr: %d | pojemnosc=%d | obecnie=%d | rozmiar grupy=%d | group_id=[", i, tables[i].capacity, tables[i].current, tables[i].group_size);
 		for (int j = 0; j < 4; ++j) {
 			if (tables[i].group_id[j] != 0) {
-				printf("%d ", tables[i].group_id[j]);
+				printf(" %d ", tables[i].group_id[j]);
 			}
 		}
 		printf("]\n");
