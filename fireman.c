@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
         	perror("Blad podlaczenia pamieci dzielonej");
         	exit(1);
     	}
-    	sleep(40);
+    	sleep(40 + (rand() % 100));
     	printf("Strazak: POZAR!!!\n");
 
 

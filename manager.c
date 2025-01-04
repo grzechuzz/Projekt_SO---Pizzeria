@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 
-	sleep(2); 
+	sleep(1); // inicjalizacja zasobow kasjera
 
 	// Tworzenie + odpalanie strazaka c;
 	pid_t fireman_id = fork();
@@ -115,8 +115,8 @@ int main(int argc, char* argv[]) {
 			exit(1);
 		}
 
-		int rand_time = rand() % 5 + 3; // Przyjscie klienta [czekamy co najmniej 3 sek, max 7 sek]
-		
+		int rand_time = 1; 
+
 		if (!sigusr2_sent && (work_time - 20 < (unsigned long)time(NULL))) {
 			sigusr2_sent = 1;
 			printf("Manager: Kasjer, sluchaj niedlugo zamykamy, nie wpuszczaj juz klientow.\n");
@@ -133,7 +133,7 @@ int main(int argc, char* argv[]) {
 	if (pid == -1)
 		perror("Blad waitpid");
 
-	if (kill(cashier_id, 0) != 0) {
+	if (!fire_alarm && kill(cashier_id, 0) != 0) {
 		if (kill(fireman_id, SIGTERM) == -1) {
 			perror("Nie udalo sie wyslac SIGTERM do strazaka!");
 		}
@@ -144,8 +144,7 @@ int main(int argc, char* argv[]) {
 	remove_shm(shm_id, tables);
 	remove_sem(sem_id);
 
-	// TODO - odczyt raportu z pliku
-
+	printf("\n");
 	printf("Manager: Odczytuje raport...\n");
 	sleep(1);
 	read_report();
