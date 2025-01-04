@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <signal.h>
+#include <errno.h>
 #include "helper.h"
 
 void arg_checker(int argc, char* argv[]);
@@ -58,7 +59,10 @@ int main(int argc, char* argv[]) {
 
 	// Odbior komunikatu przez klientow czy jest wolny stolik czy nie
 	if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), getpid(), 0) == -1) {
-		perror("Blad odbierania komunikatu w msgrcv()");
+		if (errno == EIDRM) 
+			printf("Grupa klientow (%d) %d-osobowa: Niestety lokal jest juz zamkniety, wracamy do domu.\n", getpid(), n);
+		else
+			perror("Blad odbierania komunikatu w msgrcv()");
 		exit(1);
 	}
 
@@ -121,7 +125,7 @@ int main(int argc, char* argv[]) {
 	printf("Grupa klientow (%d) %d-osobowa: Skladamy zamowienie na laczna kwote %.2lf zl. Siadamy z nim przy stoliku nr %d.\n", getpid(), n, total_price, msg.table_number);
 
 	// Jedzenie
-	sleep(18);
+	sleep(5);
 
 	// Opuszczanie stolika 
 	msg.mtype = 1;
