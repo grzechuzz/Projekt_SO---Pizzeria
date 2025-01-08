@@ -54,7 +54,9 @@ int main(int argc, char* argv[]) {
         	perror("Blad podlaczenia pamieci dzielonej");
         	exit(1);
     	}
-    	sleep(40);
+
+	int fire_time = (rand() % 50001 + 10000) * 1000; // 30% na pozar 
+    	usleep(fire_time);
     	printf("\033[41mStrazak: POZAR!!!\033[0m\n");
 
 

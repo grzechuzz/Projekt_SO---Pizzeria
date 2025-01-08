@@ -106,7 +106,8 @@ int main(int argc, char* argv[]) {
 		
 		if (msg.action == TABLE_RESERVATION) {
 			P(sem_id, SEM_MUTEX_TABLES_DATA);
-			sleep(1);
+			int table_time = (rand() % 351 + 50) * 1000; // odpowiedz nt. stolika 50ms-400ms 
+			usleep(table_time);
 			int table_num = find_table(tables, msg.group_size, table_count); 
 			if (table_num == TABLE_NOT_FOUND) {
 				printf("\033[32mKasjer: nie znaleziono stolikow dla grupy (%d) %d-osobowej.\033[0m\n", msg.group_id, msg.group_size);
@@ -155,7 +156,7 @@ int main(int argc, char* argv[]) {
 	
 	if (fire_alarm == 1) {
 		printf("\033[32mKasjer: POZAR! Zaraz zamykam kase i szybko generuje raport!\033[0m\n");
-		sleep(2);
+		usleep(100000);
 		printf("\033[32mKasjer: Kasa zamknieta! Uciekam!!!\033[0m\n");
 	} else {
 		printf("\033[32mKasjer: Zamykam kase i generuje raport!\033[0m\n");
@@ -246,7 +247,7 @@ void signals_handler(int sig) {
 		fire_alarm = 1;
 	else if (sig == SIGUSR2) {
 		closing_soon = 1;
-		work_time = (unsigned long)time(NULL) + 22;
+		work_time = (unsigned long)time(NULL) + 4;
 	}
 }
 

@@ -95,9 +95,9 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 
-	unsigned long work_time = time(NULL) + 90;
+	unsigned long work_time = time(NULL) + 25; // Pizzeria otwarta 25 sek
 		
-	// Tworzenie klientow
+
 	while (!fire_alarm && (work_time > (unsigned long)time(NULL))) {
 		char group_size[5];
 		int rand_group_size = rand() % 3 + 1;
@@ -115,9 +115,9 @@ int main(int argc, char* argv[]) {
 			exit(1);
 		}
 
-		int rand_time = 1; 
+		int generate_time = (rand() % 1501 + 200) * 1000; // generacja klientow 200ms - 1700ms 
 
-		if (!sigusr2_sent && (work_time - 20 < (unsigned long)time(NULL))) {
+		if (!sigusr2_sent && (work_time - 4 < (unsigned long)time(NULL))) {
 			sigusr2_sent = 1;
 			printf("\033[41mManager: Kasjer, sluchaj niedlugo zamykamy, nie wpuszczaj juz klientow.\033[0m\n");
 			if (kill(cashier_id, SIGUSR2) == -1) {
@@ -126,7 +126,7 @@ int main(int argc, char* argv[]) {
 			}
 		}
 	
-		sleep(rand_time); // klienci przychodza co losowy czas
+		usleep(generate_time); 
 	}
 
 	pid_t pid = waitpid(cashier_id, NULL, 0);
@@ -145,7 +145,7 @@ int main(int argc, char* argv[]) {
 	remove_sem(sem_id);
 
 	printf("\033[31mManager: Odczytuje raport...\033[0m\n");
-	sleep(1);
+	usleep(500000);
 	read_report();
 
 	return 0;
