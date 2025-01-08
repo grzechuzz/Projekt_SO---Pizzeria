@@ -55,8 +55,8 @@ int main(int argc, char* argv[]) {
         	exit(1);
     	}
 
-	int fire_time = (rand() % 50001 + 10000) * 1000; // 30% na pozar 
-    	usleep(fire_time);
+	int fire_time = 29; 
+    	sleep(fire_time);
     	printf("\033[41mStrazak: POZAR!!!\033[0m\n");
 
 

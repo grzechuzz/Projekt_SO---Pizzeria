@@ -42,7 +42,6 @@ int main(int argc, char* argv[]) {
 	int msg_id = join_msg(msg_key);
 
 	int n = atoi(argv[1]);
-	printf("\033[36mGrupa klientow (%d) %d-osobowa: zglaszamy zapotrzebowanie na stolik.\033[0m\n", getpid(), n);
 
 	CashierClientComm msg;
 	msg.mtype = 1;
@@ -52,17 +51,19 @@ int main(int argc, char* argv[]) {
 	msg.table_number = -1;
 
 	// Zgloszenie zapotrzebowania na stolik
-	if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+	if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), IPC_NOWAIT) == -1) {
+		if (errno == EAGAIN || errno == EIDRM) 
+			exit(0);
+
 		perror("Blad wysylania komunikatu w msgsnd()");
 		exit(1);
-	} 
+	}
+
+	printf("\033[36mGrupa klientow (%d) %d-osobowa: zglaszamy zapotrzebowanie na stolik.\033[0m\n", getpid(), n);	
 
 	// Odbior komunikatu przez klientow czy jest wolny stolik czy nie
 	if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), getpid(), 0) == -1) {
-		if (errno == EIDRM) 
-			printf("\033[36mGrupa klientow (%d) %d-osobowa: Niestety lokal jest juz zamkniety, wracamy do domu.\033[0m\n", getpid(), n);
-		else
-			perror("Blad odbierania komunikatu w msgrcv()");
+		perror("Blad odbierania komunikatu w msgrcv()");
 		exit(1);
 	}
 
@@ -118,14 +119,14 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
-		perror("Blad wysylania komunikatu w msgsnd()");
-		exit(1);
+        	perror("Blad wysylania komunikatu w msgsnd()");
+                exit(1);
 	}
 
 	printf("\033[36mGrupa klientow (%d) %d-osobowa: Skladamy zamowienie na laczna kwote %.2lf zl. Siadamy z nim przy stoliku nr %d.\033[0m\n", getpid(), n, total_price, msg.table_number);
 
 	// Jedzenie
-	int eating_time = (rand() % 2501 + 500) * 1000; // jemy 500ms-3000ms 
+	int eating_time = (rand() % 2001 + 500) * 1000;  
 	usleep(eating_time);
 
 	// Opuszczanie stolika 
