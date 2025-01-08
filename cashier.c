@@ -105,9 +105,7 @@ int main(int argc, char* argv[]) {
 		}
 		
 		if (msg.action == TABLE_RESERVATION) {
-			P(sem_id, SEM_MUTEX_TABLES_DATA);
-			int table_time = (rand() % 351 + 50) * 1000; // odpowiedz nt. stolika 50ms-400ms 
-			usleep(table_time);
+			P(sem_id, SEM_MUTEX_TABLES_DATA); 
 			int table_num = find_table(tables, msg.group_size, table_count); 
 			if (table_num == TABLE_NOT_FOUND) {
 				printf("\033[32mKasjer: nie znaleziono stolikow dla grupy (%d) %d-osobowej.\033[0m\n", msg.group_id, msg.group_size);
@@ -128,8 +126,13 @@ int main(int argc, char* argv[]) {
 			msg.mtype = msg.group_id;
 			
 			if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
-				perror("Blad wysylania komunikatu w msgsnd()");
-				exit(1);
+				if (errno == EINTR) {
+					if (fire_alarm)
+						break;
+					continue;
+				} 	
+					perror("Blad wysylania komunikatu w msgsnd()");
+					exit(1);
 			}
 		} else if (msg.action == ORDER) {
 			tables_status(tables, table_count);
@@ -247,7 +250,7 @@ void signals_handler(int sig) {
 		fire_alarm = 1;
 	else if (sig == SIGUSR2) {
 		closing_soon = 1;
-		work_time = (unsigned long)time(NULL) + 4;
+		work_time = (unsigned long)time(NULL) + TIME_TO_CLOSE;
 	}
 }
 

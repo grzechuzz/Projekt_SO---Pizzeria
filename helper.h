@@ -12,7 +12,9 @@
 #define TABLE_EXIT 3
 #define TABLE_NOT_FOUND -1
 #define CLOSING_SOON -2
-
+#define TIME_TO_CLOSE 3
+#define MAX_ACTIVE_CLIENTS 400
+#define WORK_TIME 30
 
 typedef struct {
 	int capacity;

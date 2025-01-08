@@ -53,3 +53,9 @@ dkms.conf
 
 # files .txt
 *.txt
+
+# wlasne
+fireman
+cashier
+client
+manager
