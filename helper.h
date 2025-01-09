@@ -15,7 +15,7 @@
 #define TIME_TO_CLOSE 3
 #define MAX_ACTIVE_CLIENTS 400
 #define WORK_TIME 30
-#define MAX_WAITING 30
+#define MAX_WAITING_CLIENTS 30
 
 // Struktura stolika, potrzebna do pamieci dzielonej
 typedef struct {
@@ -39,6 +39,12 @@ typedef struct {
 	int table_number;
 	int dishes[3];
 } CashierClientComm;
+
+// Struktura dla oczekujacych klientow (mozna w teorii uzyc CashierClientComm, ale wolimy lzejsza strukturke :D)
+typedef struct {
+	pid_t group_id;
+	int group_size;
+} WaitingClient;
 
 // Dla watkow (jako wyodrebniona jedna osoba wew. procesu klienta) 
 typedef struct {
