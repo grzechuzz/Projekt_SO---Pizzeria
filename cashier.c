@@ -26,6 +26,11 @@ void signals_handler(int sig);
 void tables_status(Table* tables, int table_count);
 
 int main(int argc, char* argv[]) {
+	if (argc != 5) {
+                fprintf(stderr, "Bledna liczba argumentow. Poprawne uzycie ./manager <X1> <X2> <X3> <X4>");
+                exit(1);
+        }
+
         int x1 = atoi(argv[1]);
 	int x2 = atoi(argv[2]);
 	int x3 = atoi(argv[3]);
@@ -95,12 +100,20 @@ int main(int argc, char* argv[]) {
 		CashierClientComm msg; 
 		msg.table_number = -1;
 	
-		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), 1, IPC_NOWAIT) == -1) {
+		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), TABLE_RESERVATION, IPC_NOWAIT) == -1) {
 			if (errno == ENOMSG)
 				continue;
 			else {
 				perror("Blad odbierania komunikatu w msgrcv()");
 				exit(1);
+			}
+		} else {
+			P(sem_id, SEM_MUTEX_TABLES_DATA);
+			int table_num = find_table(tables, msg.group_size, table_count);
+			if (table_num == CLOSING_SOON) {
+				printf("\033[32mKasjer: Grupo (%d), przykro mi, ale zaraz zamykamy, nie przydzielam stolika.\033[0m\n", msg.group_id);
+			} else if (table_num == NOT_FOUND) {
+				
 			}
 		}
 		
@@ -155,15 +168,18 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	generate_report(dishes_count, total_income, client_count);
+
 	
 	if (fire_alarm == 1) {
 		printf("\033[32mKasjer: POZAR! Zaraz zamykam kase i szybko generuje raport!\033[0m\n");
-		usleep(100000);
-		printf("\033[32mKasjer: Kasa zamknieta! Uciekam!!!\033[0m\n");
 	} else {
-		printf("\033[32mKasjer: Zamykam kase i generuje raport!\033[0m\n");
+		printf("\033[32mKasjer: Generuje raport!\033[0m\n");
 	}
+
+	usleep(500000);
+	generate_report(dishes_count, total_income, client_count);
+	printf("\033[32mKasjer: Zamykam kase!\033[0m\n");	
+
 
 	remove_msg(msg_id);
 

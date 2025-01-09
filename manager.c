@@ -129,7 +129,7 @@ int main(int argc, char* argv[]) {
 		
 		// Co ile generujemy klientow (100ms-1s)
 		int generate_time = (rand() % 901 + 100) * 1000;
-		usleep(generate_time); 
+		usleep(10000); 
 
 		while (waitpid(-1, NULL, WNOHANG) > 0)
 		       	active_clients--;

@@ -44,17 +44,16 @@ int main(int argc, char* argv[]) {
 	int n = atoi(argv[1]);
 
 	CashierClientComm msg;
-	msg.mtype = 1;
-	msg.action = TABLE_RESERVATION;
+	msg.mtype = TABLE_RESERVATION;
+	//msg.action = TABLE_RESERVATION;
 	msg.group_size = n;
 	msg.group_id = getpid();
 	msg.table_number = -1;
 
 	// Zgloszenie zapotrzebowania na stolik
-	if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), IPC_NOWAIT) == -1) {
-		if (errno == EAGAIN || errno == EIDRM) 
+	if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+		if (errno == EIDRM) 
 			exit(0);
-
 		perror("Blad wysylania komunikatu w msgsnd()");
 		exit(1);
 	}
@@ -74,7 +73,6 @@ int main(int argc, char* argv[]) {
 		printf("\033[36mGrupa kilentow (%d) %d-osobowa: Szkoda, sprobujemy ponownie jutro.\033[0m\n", getpid(), n);
 		exit(0);
 	}
-
 	// Skladanie zamowienia (siadziemy przy stole dopiero, gdy zamowimy :D)
 	for (int i = 0; i < 3; ++i) 
 		msg.dishes[i] = -1;

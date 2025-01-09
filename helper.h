@@ -15,7 +15,9 @@
 #define TIME_TO_CLOSE 3
 #define MAX_ACTIVE_CLIENTS 400
 #define WORK_TIME 30
+#define MAX_WAITING 30
 
+// Struktura stolika, potrzebna do pamieci dzielonej
 typedef struct {
 	int capacity;
 	pid_t group_id[4];
@@ -23,25 +25,26 @@ typedef struct {
 	int current;
 } Table;
 
+// Jedno danie, potrzebne do def. menu
 typedef struct {
 	const char* dish_name;
 	double price;
 } Dish;
 
+// Struktura komunikatu (klient <-> kajser)
 typedef struct {
 	long mtype;
-	int action;
 	int group_size;
 	pid_t group_id;
 	int table_number;
 	int dishes[3];
 } CashierClientComm;
 
+// Dla watkow (jako wyodrebniona jedna osoba wew. procesu klienta) 
 typedef struct {
 	int* orders;
 	int size;	
 } ClientOrders;
-
 
 extern Dish menu[10];
 
