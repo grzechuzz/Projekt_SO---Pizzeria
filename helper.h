@@ -2,6 +2,7 @@
 #define HELPER_H
 
 #include <sys/types.h>
+#include <sys/ipc.h>
 
 #define SEM_MUTEX_TABLES_DATA 0
 #define SEM_GEN_KEY 'A'
