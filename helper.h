@@ -31,20 +31,19 @@ typedef struct {
 	double price;
 } Dish;
 
+// Struktura klienta jako grupy n-osobowej (potrzebna do listy oczekujacych + do struktury komunikatow)
+typedef struct {
+	int group_size;
+	pid_t group_id;
+} Client;
+
 // Struktura komunikatu (klient <-> kajser)
 typedef struct {
 	long mtype;
-	int group_size;
-	pid_t group_id;
+	Client client;
 	int table_number;
 	int dishes[3];
 } CashierClientComm;
-
-// Struktura dla oczekujacych klientow (mozna w teorii uzyc CashierClientComm, ale wolimy lzejsza strukturke :D)
-typedef struct {
-	pid_t group_id;
-	int group_size;
-} WaitingClient;
 
 // Dla watkow (jako wyodrebniona jedna osoba wew. procesu klienta) 
 typedef struct {
