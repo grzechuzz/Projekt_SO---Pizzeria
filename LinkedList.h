@@ -13,7 +13,7 @@ typedef struct {
 	int current_size;
 } LinkedList;
 
-void initialize_node(Client c);
+Node* initialize_node(Client c);
 void initialize_linked_list(LinkedList* ll);
 int get_current_size(const LinkedList* ll);
 void add(LinkedList* ll, Client c);
