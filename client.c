@@ -45,9 +45,8 @@ int main(int argc, char* argv[]) {
 
 	CashierClientComm msg;
 	msg.mtype = TABLE_RESERVATION;
-	//msg.action = TABLE_RESERVATION;
-	msg.group_size = n;
-	msg.group_id = getpid();
+	msg.client.group_size = n;
+	msg.client.group_id = getpid();
 	msg.table_number = -1;
 
 	// Zgloszenie zapotrzebowania na stolik
@@ -62,6 +61,8 @@ int main(int argc, char* argv[]) {
 
 	// Odbior komunikatu przez klientow czy jest wolny stolik czy nie
 	if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), getpid(), 0) == -1) {
+		if (errno == EIDRM) 
+			exit(0);		
 		perror("Blad odbierania komunikatu w msgrcv()");
 		exit(1);
 	}
@@ -73,10 +74,10 @@ int main(int argc, char* argv[]) {
 		printf("\033[36mGrupa kilentow (%d) %d-osobowa: Szkoda, sprobujemy ponownie jutro.\033[0m\n", getpid(), n);
 		exit(0);
 	}
+
 	// Skladanie zamowienia (siadziemy przy stole dopiero, gdy zamowimy :D)
 	for (int i = 0; i < 3; ++i) 
 		msg.dishes[i] = -1;
-	
 	
 	if (pthread_mutex_init(&mutex, NULL) != 0) {
 		perror("Blad w pthread_mutex_init()");
@@ -109,8 +110,8 @@ int main(int argc, char* argv[]) {
 	}
 	
 	double total_price = 0;
-	msg.mtype = 1;
-	msg.action = ORDER;
+	msg.mtype = ORDER;
+
 	for (int i = 0; i < n; ++i) {
 		msg.dishes[i] = orders[i];
 		total_price += menu[orders[i]].price;
@@ -128,8 +129,7 @@ int main(int argc, char* argv[]) {
 	usleep(eating_time);
 
 	// Opuszczanie stolika 
-	msg.mtype = 1;
-	msg.action = TABLE_EXIT;
+	msg.mtype = TABLE_EXIT;
 	if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
 		perror("Blad wysylania komunikatu w msgsnd()");
 		exit(1);	
