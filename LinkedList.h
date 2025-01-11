@@ -7,7 +7,7 @@ typedef struct Node {
 	struct Node* next;	
 } Node;
 
-typedef struct LinkedList {
+typedef struct {
 	Node* head;
 	int size;
 	int current_size;
@@ -16,7 +16,7 @@ typedef struct LinkedList {
 void initialize_linked_list(LinkedList* ll, int size);
 int get_current_size(const LinkedList* ll);
 void add(LinkedList* ll, Client* c);
-Client* pop(LinkedList* ll, int group_size);
+Client* pop_suitable(LinkedList* ll, int needed_group_size, int available_seats);
 void display(const LinkedList* ll);
 void free_linked_list(LinkedList* ll);
 
