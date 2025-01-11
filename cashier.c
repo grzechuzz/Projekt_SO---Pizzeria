@@ -14,15 +14,19 @@
 #include <limits.h>
 #include <errno.h>
 #include "helper.h"
+#include "LinkedList.h"
 
 volatile sig_atomic_t fire_alarm = 0;
 volatile sig_atomic_t closing_soon = 0;
 volatile unsigned long work_time = ULONG_MAX;
 
+void signals_handler(int sig);
 void initialize_tables(Table* tables, int start, int end, int capacity);
 int find_table(Table* tables, int group_size, int table_count);
+void remove_group_from_table(Table* tables, int table_idx, pid_t group_pid, int group_size);
+void seat_group(Table* tables, int table_idx, Client* c, int msg_id);
+void seat_all_possible_from_queue(Table* tables, LinkedList* waiting_clients, int table_count, int msg_id);
 void generate_report(int* dishes_count, double total_income, int client_count); 
-void signals_handler(int sig);
 void tables_status(Table* tables, int table_count);
 
 int main(int argc, char* argv[]) {
@@ -39,7 +43,6 @@ int main(int argc, char* argv[]) {
 		
 	setbuf(stdout, NULL);
 
-	// Do obslugi sygnalu
 	struct sigaction sa;
 	sa.sa_handler = signals_handler;
 	sigemptyset(&sa.sa_mask);
@@ -91,83 +94,84 @@ int main(int argc, char* argv[]) {
         initialize_tables(tables, x1+x2, x1+x2+x3, 3);
         initialize_tables(tables, x1+x2+x3, x1+x2+x3+x4, 4);
 
+	LinkedList waiting_clients;
+	initialize_linked_list(&waiting_clients, MAX_WAITING_CLIENTS);	
+
 	int dishes_count[10] = {0};
 	double total_income = 0.0;
 	int client_count = 0;
+
 	printf("\033[32mKasjer: otwieram kase!\033[0m\n");
 
 	while(!fire_alarm && ((unsigned long)time(NULL) < work_time)) {
 		CashierClientComm msg; 
-		msg.table_number = -1;
-	
-		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), TABLE_RESERVATION, IPC_NOWAIT) == -1) {
-			if (errno == ENOMSG)
-				continue;
-			else {
+		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), TABLE_RESERVATION, IPC_NOWAIT) != -1) {
+			P(sem_id, SEM_MUTEX_TABLES_DATA);
+			if (get_current_size(&waiting_clients) > 0)
+				seat_all_possible_from_queue(tables, &waiting_clients, table_count, msg_id);
+
+			int idx = find_table(tables, msg.client.group_size, table_count);
+			if (idx == CLOSING_SOON) {
+				msg.mtype = msg.client.group_id;
+				msg.table_number = CLOSING_SOON;
+				if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+					perror("Blad wysylania komunikatu w msgsnd()");
+					exit(1);
+				}
+			} else if (idx == TABLE_NOT_FOUND) {
+				if (get_current_size(&waiting_clients) >= MAX_WAITING_CLIENTS) {
+					msg.mtype = msg.client.group_id;
+					msg.table_number = TABLE_NOT_FOUND;
+					if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+						perror("Blad wysylania komunikatu w msgsnd()");
+						exit(1);
+					}
+				} else {
+					add(&waiting_clients, &msg.client);
+					display(&waiting_clients);
+				}
+			} else {
+				seat_group(tables, idx, &msg.client, msg_id);
+			}
+			V(sem_id, SEM_MUTEX_TABLES_DATA);
+		} else {
+			if (errno != ENOMSG) {
 				perror("Blad odbierania komunikatu w msgrcv()");
 				exit(1);
 			}
-		} else {
-			P(sem_id, SEM_MUTEX_TABLES_DATA);
-			int table_num = find_table(tables, msg.group_size, table_count);
-			if (table_num == CLOSING_SOON) {
-				printf("\033[32mKasjer: Grupo (%d), przykro mi, ale zaraz zamykamy, nie przydzielam stolika.\033[0m\n", msg.group_id);
-			} else if (table_num == NOT_FOUND) {
-				
-			}
 		}
-		
-		if (msg.action == TABLE_RESERVATION) {
-			P(sem_id, SEM_MUTEX_TABLES_DATA); 
-			int table_num = find_table(tables, msg.group_size, table_count); 
-			if (table_num == TABLE_NOT_FOUND) {
-				printf("\033[32mKasjer: nie znaleziono stolikow dla grupy (%d) %d-osobowej.\033[0m\n", msg.group_id, msg.group_size);
-			} else if (table_num == CLOSING_SOON) {
-				printf("\033[32mKasjer: Grupo (%d), przykro mi, ale zaraz zamykamy, nie przydzielam stolika.\033[0m\n", msg.group_id); 
-			} else { 
-				tables[table_num].current += msg.group_size;
-				tables[table_num].group_size = msg.group_size;
-				int idx = 0;
-				while (idx < 4 && tables[table_num].group_id[idx] != 0)
-					idx++;
-				tables[table_num].group_id[idx] = msg.group_id;
-				printf("\033[32mKasjer: stolik nr %d przydzielony dla grupy (%d) %d-osobowej.\033[0m\n", table_num, msg.group_id, msg.group_size);
-			}
-			V(sem_id, SEM_MUTEX_TABLES_DATA);
 
-			msg.table_number = table_num;
-			msg.mtype = msg.group_id;
-			
-			if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
-				if (errno == EINTR) {
-					if (fire_alarm)
-						break;
-					continue;
-				} 	
-					perror("Blad wysylania komunikatu w msgsnd()");
-					exit(1);
-			}
-		} else if (msg.action == ORDER) {
-			tables_status(tables, table_count);
-			for (int i = 0; i < msg.group_size; ++i) {
+		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), ORDER, IPC_NOWAIT) != -1) {
+
+			for (int i = 0; i < msg.client.group_size; ++i) {
 				dishes_count[msg.dishes[i]]++;
 				total_income += menu[msg.dishes[i]].price;
 			}
-			client_count += msg.group_size;
-		} else if (msg.action == TABLE_EXIT) {
-			P(sem_id, SEM_MUTEX_TABLES_DATA);
-			int x = 0;
-			while (x < 4 && tables[msg.table_number].group_id[x] != msg.group_id)
-				x++;
-
-			tables[msg.table_number].group_id[x] = 0;
-			tables[msg.table_number].current -= msg.group_size;
-			if (tables[msg.table_number].current == 0)
-				tables[msg.table_number].group_size = 0;		
+			client_count += msg.client.group_size;
+			P(sem_id, SEM_MUTEX_TABLES_DATA);	
+			tables_status(tables, table_count);
 			V(sem_id, SEM_MUTEX_TABLES_DATA);
+		} else {
+			if (errno != ENOMSG) {
+				perror("Blad odbierania komunkatu w msgrcv()");
+				exit(1);
+			}
+			
+		}
+
+		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), TABLE_EXIT, IPC_NOWAIT) != -1) {
+			P(sem_id, SEM_MUTEX_TABLES_DATA);
+			remove_group_from_table(tables, msg.table_number, msg.client.group_id, msg.client.group_size);
+			if (get_current_size(&waiting_clients) > 0)
+				seat_all_possible_from_queue(tables, &waiting_clients, table_count, msg_id);
+			V(sem_id, SEM_MUTEX_TABLES_DATA);
+		} else {
+			if (errno != ENOMSG) {
+				perror("Blad odbierania komunikatu w msgrcv()");
+				exit(1);
+			}
 		}
 	}
-
 
 	
 	if (fire_alarm == 1) {
@@ -176,10 +180,9 @@ int main(int argc, char* argv[]) {
 		printf("\033[32mKasjer: Generuje raport!\033[0m\n");
 	}
 
-	usleep(500000);
+	sleep(2);
 	generate_report(dishes_count, total_income, client_count);
 	printf("\033[32mKasjer: Zamykam kase!\033[0m\n");	
-
 
 	remove_msg(msg_id);
 
@@ -208,6 +211,66 @@ int find_table(Table* tables, int group_size, int table_count) {
 	}
 
 	return TABLE_NOT_FOUND;
+}
+
+void remove_group_from_table(Table* tables, int table_idx, pid_t group_id, int group_size) {
+	int i = 0;
+	while (i < 4 && tables[table_idx].group_id[i] != group_id)
+		++i;
+
+	tables[table_idx].group_id[i] = 0;
+	tables[table_idx].current -= group_size;
+
+	if (tables[table_idx].current == 0)
+		tables[table_idx].group_size = 0;
+}
+
+void seat_group(Table* tables, int table_idx, Client* c, int msg_id) {
+	if (tables[table_idx].current == 0) 
+		tables[table_idx].group_size = c->group_size; 
+
+	tables[table_idx].current += c->group_size;
+
+	int i = 0;
+	while (i < 4 && tables[table_idx].group_id[i] != 0) 
+		++i;
+
+	tables[table_idx].group_id[i] = c->group_id;
+
+	CashierClientComm msg;
+	msg.mtype = c->group_id;
+	msg.client = *c;
+	msg.table_number = table_idx;
+
+	if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+		perror("Blad wysylania komunikatu w msgsnd()");
+		exit(1);
+	}
+
+	printf("\033[32mKasjer: stolik nr %d przydzielony dla grupy (%d) %d-osobowej.\033[0m\n", table_idx, c->group_id, c->group_size);	
+}
+
+void seat_all_possible_from_queue(Table* tables, LinkedList* waiting_clients, int table_count, int msg_id) {
+	int changed = 1;
+	while (changed) {
+		changed = 0;
+		for (int i = 0; i < table_count; ++i) {
+			int free_seats = tables[i].capacity - tables[i].current;
+			if (free_seats <= 0)
+				continue;
+
+			int current_groups_size = tables[i].group_size;
+			if (free_seats < current_groups_size)
+				continue;
+			
+			Client* c = pop_suitable(waiting_clients, current_groups_size, free_seats);
+		       	if (c != NULL) {
+				seat_group(tables, i, c, msg_id);
+				changed = 1;
+				free(c);			
+			}	
+		}
+	}
 }
 
 void generate_report(int* dishes_count, double total_income, int client_count) {
@@ -284,3 +347,5 @@ void tables_status(Table* tables, int table_count) {
 	}
 	printf("\033[32m------------------------------------------\033[0m\n\n");
 }
+
+
