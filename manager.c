@@ -97,7 +97,7 @@ int main(int argc, char* argv[]) {
 	unsigned long worktime = time(NULL) + WORK_TIME;
 	int active_clients = 0;	
 
-	while (!fire_alarm && (worktime > (unsigned long)time(NULL))) {
+	while (!fire_alarm && !sigusr2_sent) {
 		char group_size[5];
 		int rand_group_size = rand() % 3 + 1;
 		snprintf(group_size, sizeof(group_size), "%d", rand_group_size);
@@ -127,9 +127,9 @@ int main(int argc, char* argv[]) {
 			}
 		}
 		
-		// Co ile generujemy klientow (100ms-1s)
-		int generate_time = (rand() % 901 + 100) * 1000;
-		usleep(10000); 
+		// Co ile generujemy klientow (1s-3s)
+		int generate_time = 50000;
+		sleep(8); 
 
 		while (waitpid(-1, NULL, WNOHANG) > 0)
 		       	active_clients--;
@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
 	remove_sem(sem_id);
 
 	printf("\033[31mManager: Odczytuje raport...\033[0m\n");
-	usleep(50000);
+	sleep(2);
 	read_report();
 
 	return 0;
