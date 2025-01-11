@@ -28,6 +28,7 @@ void seat_group(Table* tables, int table_idx, Client* c, int msg_id);
 void seat_all_possible_from_queue(Table* tables, LinkedList* waiting_clients, int table_count, int msg_id);
 void generate_report(int* dishes_count, double total_income, int client_count); 
 void tables_status(Table* tables, int table_count);
+void send_closing_soon(LinkedList* waiting_clients, int msg_id);
 
 int main(int argc, char* argv[]) {
 	if (argc != 5) {
@@ -104,7 +105,11 @@ int main(int argc, char* argv[]) {
 	printf("\033[32mKasjer: otwieram kase!\033[0m\n");
 
 	while(!fire_alarm && ((unsigned long)time(NULL) < work_time)) {
-		CashierClientComm msg; 
+		if (closing_soon == 1 && get_current_size(&waiting_clients) > 0) 
+			send_closing_soon(&waiting_clients, msg_id);
+
+		CashierClientComm msg;
+
 		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), TABLE_RESERVATION, IPC_NOWAIT) != -1) {
 			P(sem_id, SEM_MUTEX_TABLES_DATA);
 			if (get_current_size(&waiting_clients) > 0)
@@ -172,16 +177,41 @@ int main(int argc, char* argv[]) {
 			}
 		}
 	}
-
 	
 	if (fire_alarm == 1) {
 		printf("\033[32mKasjer: POZAR! Zaraz zamykam kase i szybko generuje raport!\033[0m\n");
 	} else {
 		printf("\033[32mKasjer: Generuje raport!\033[0m\n");
+		printf("\033[32mKasjer: Jezeli ktos jeszcze je, to daje mu dokonczyc...\033[0m\n");
+		while (1) {
+			int check_tables = 1;
+			for (int i = 0; i < table_count; ++i) {
+				if (tables[i].current != 0) {
+					check_tables = 0;
+					break;
+				}
+			}
+			
+			if (check_tables)
+				break;
+			
+			CashierClientComm msg;
+			while (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), TABLE_EXIT, IPC_NOWAIT) == -1) {
+				if (errno == ENOMSG)
+					continue;
+				else {
+					perror("Blad odbierania komunikatu w msgrcv()");
+					exit(1);
+				}
+			}
+			P(sem_id, SEM_MUTEX_TABLES_DATA);
+			remove_group_from_table(tables, msg.table_number, msg.client.group_id, msg.client.group_size);
+			V(sem_id, SEM_MUTEX_TABLES_DATA);
+		}
 	}
 
-	sleep(2);
 	generate_report(dishes_count, total_income, client_count);
+
 	printf("\033[32mKasjer: Zamykam kase!\033[0m\n");	
 
 	remove_msg(msg_id);
@@ -348,4 +378,26 @@ void tables_status(Table* tables, int table_count) {
 	printf("\033[32m------------------------------------------\033[0m\n\n");
 }
 
+void send_closing_soon(LinkedList* waiting_clients, int msg_id) {
+	Node* temp = waiting_clients->head;
+
+	while (temp != NULL) {
+		Client* c = temp->client;
+		CashierClientComm msg;
+
+		msg.mtype = c->group_id;
+		msg.client = *c;
+		msg.table_number = CLOSING_SOON;
+		
+		printf("\033[32mKasjer: Grupo (%d), przykro mi, ale zaraz zamykamy, nie przydziele wam stolika.\033[0m\n", msg.client.group_id);
+
+		if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+			perror("Blad wysylania komunikatu w msgsnd()");
+			exit(1);
+		}
+
+		temp = temp->next;
+	}
+	waiting_clients->current_size = 0;
+}
 
