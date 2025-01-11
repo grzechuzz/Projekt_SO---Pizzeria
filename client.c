@@ -50,14 +50,13 @@ int main(int argc, char* argv[]) {
 	msg.table_number = -1;
 
 	// Zgloszenie zapotrzebowania na stolik
+	printf("\033[36mGrupa klientow (%d) %d-osobowa: zglaszamy zapotrzebowanie na stolik i stajemy w kolejce\033[0m\n", getpid(), n);
 	if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
 		if (errno == EIDRM) 
 			exit(0);
 		perror("Blad wysylania komunikatu w msgsnd()");
 		exit(1);
 	}
-
-	printf("\033[36mGrupa klientow (%d) %d-osobowa: zglaszamy zapotrzebowanie na stolik.\033[0m\n", getpid(), n);	
 
 	// Odbior komunikatu przez klientow czy jest wolny stolik czy nie
 	if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), getpid(), 0) == -1) {
@@ -125,8 +124,8 @@ int main(int argc, char* argv[]) {
 	printf("\033[36mGrupa klientow (%d) %d-osobowa: Skladamy zamowienie na laczna kwote %.2lf zl. Siadamy z nim przy stoliku nr %d.\033[0m\n", getpid(), n, total_price, msg.table_number);
 
 	// Jedzenie
-	int eating_time = (rand() % 2001 + 500) * 1000;  
-	usleep(eating_time);
+	int eating_time = 12;
+	sleep(eating_time);
 
 	// Opuszczanie stolika 
 	msg.mtype = TABLE_EXIT;
