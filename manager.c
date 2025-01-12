@@ -97,12 +97,11 @@ int main(int argc, char* argv[]) {
 	unsigned long worktime = time(NULL) + WORK_TIME;
 	int active_clients = 0;	
 
-	while (!fire_alarm && (worktime > (unsigned long)time(NULL))) {
+	while (!fire_alarm && (!sigusr2_sent && (unsigned long)time(NULL) < worktime)) {
 		char group_size[5];
 		int rand_group_size = rand() % 3 + 1;
 		snprintf(group_size, sizeof(group_size), "%d", rand_group_size);
 		
-
 		if (active_clients < MAX_ACTIVE_CLIENTS) {
 		       	active_clients++;	
 			pid_t client_id = fork();
@@ -115,24 +114,23 @@ int main(int argc, char* argv[]) {
 				execl("./client", "client", group_size, NULL);
 				perror("Manager: nie udalo sie odpalic procesu klienta");
 				exit(1);
-			} 
+			}
+		}
 
-			if (!sigusr2_sent && (worktime - TIME_TO_CLOSE < (unsigned long)time(NULL))) {
-				sigusr2_sent = 1;
-				printf("\033[41mManager: Kasjer, sluchaj niedlugo zamykamy, nie wpuszczaj juz klientow.\033[0m\n");
-				if (kill(cashier_id, SIGUSR2) == -1) {
-					perror("Nie udalo sie wyslac SIGUSR2 do kasjera!");
-					exit(1);
-				}
+		int generate_time = rand() % 8 + 3;
+		sleep(generate_time);
+
+		if (!sigusr2_sent && (worktime - TIME_TO_CLOSE < (unsigned long)time(NULL))) {
+			sigusr2_sent = 1;
+			printf("\033[41mManager: Kasjer, sluchaj niedlugo zamykamy, nie wpuszczaj juz klientow.\033[0m\n");
+			if (kill(cashier_id, SIGUSR2) == -1) {
+				perror("Nie udalo sie wyslac SIGUSR2 do kasjera!");
+				exit(1);
 			}
 		}
 		
-		// Co ile generujemy klientow (100ms-1s)
-		int generate_time = (rand() % 901 + 100) * 1000;
-		usleep(generate_time); 
-
 		while (waitpid(-1, NULL, WNOHANG) > 0)
-		       	active_clients--;
+			active_clients--;
 	}
 
 	pid_t pid = waitpid(cashier_id, NULL, 0);
@@ -151,7 +149,7 @@ int main(int argc, char* argv[]) {
 	remove_sem(sem_id);
 
 	printf("\033[31mManager: Odczytuje raport...\033[0m\n");
-	usleep(50000);
+	sleep(1);
 	read_report();
 
 	return 0;

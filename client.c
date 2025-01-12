@@ -44,31 +44,30 @@ int main(int argc, char* argv[]) {
 	int n = atoi(argv[1]);
 
 	CashierClientComm msg;
-	msg.mtype = 1;
-	msg.action = TABLE_RESERVATION;
-	msg.group_size = n;
-	msg.group_id = getpid();
+	msg.mtype = TABLE_RESERVATION;
+	msg.client.group_size = n;
+	msg.client.group_id = getpid();
 	msg.table_number = -1;
 
 	// Zgloszenie zapotrzebowania na stolik
-	if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), IPC_NOWAIT) == -1) {
-		if (errno == EAGAIN || errno == EIDRM) 
+	printf("\033[36mGrupa klientow (%d) %d-osobowa: zglaszamy zapotrzebowanie na stolik i stajemy w kolejce\033[0m\n", getpid(), n);
+	if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+		if (errno == EIDRM) 
 			exit(0);
-
 		perror("Blad wysylania komunikatu w msgsnd()");
 		exit(1);
 	}
 
-	printf("\033[36mGrupa klientow (%d) %d-osobowa: zglaszamy zapotrzebowanie na stolik.\033[0m\n", getpid(), n);	
-
 	// Odbior komunikatu przez klientow czy jest wolny stolik czy nie
 	if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), getpid(), 0) == -1) {
+		if (errno == EIDRM) 
+			exit(0);		
 		perror("Blad odbierania komunikatu w msgrcv()");
 		exit(1);
 	}
 
 	if (msg.table_number == TABLE_NOT_FOUND) {
-		printf("\033[36mGrupa klientow (%d) %d-osobowa: Nie chce sie nam czekac, wychodzimy z lokalu.\033[0m\n", getpid(), n);
+		printf("\033[36mGrupa klientow (%d) %d-osobowa: Nie chce sie nam czekac, sprobujemy ponownie jutro.\033[0m\n", getpid(), n);
 		exit(0);
 	} else if (msg.table_number == CLOSING_SOON) {
 		printf("\033[36mGrupa kilentow (%d) %d-osobowa: Szkoda, sprobujemy ponownie jutro.\033[0m\n", getpid(), n);
@@ -78,7 +77,6 @@ int main(int argc, char* argv[]) {
 	// Skladanie zamowienia (siadziemy przy stole dopiero, gdy zamowimy :D)
 	for (int i = 0; i < 3; ++i) 
 		msg.dishes[i] = -1;
-	
 	
 	if (pthread_mutex_init(&mutex, NULL) != 0) {
 		perror("Blad w pthread_mutex_init()");
@@ -111,8 +109,8 @@ int main(int argc, char* argv[]) {
 	}
 	
 	double total_price = 0;
-	msg.mtype = 1;
-	msg.action = ORDER;
+	msg.mtype = ORDER;
+
 	for (int i = 0; i < n; ++i) {
 		msg.dishes[i] = orders[i];
 		total_price += menu[orders[i]].price;
@@ -126,12 +124,11 @@ int main(int argc, char* argv[]) {
 	printf("\033[36mGrupa klientow (%d) %d-osobowa: Skladamy zamowienie na laczna kwote %.2lf zl. Siadamy z nim przy stoliku nr %d.\033[0m\n", getpid(), n, total_price, msg.table_number);
 
 	// Jedzenie
-	int eating_time = (rand() % 2001 + 500) * 1000;  
-	usleep(eating_time);
+	int eating_time = rand() % 15 + 5;
+	sleep(eating_time);
 
 	// Opuszczanie stolika 
-	msg.mtype = 1;
-	msg.action = TABLE_EXIT;
+	msg.mtype = TABLE_EXIT;
 	if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
 		perror("Blad wysylania komunikatu w msgsnd()");
 		exit(1);	
