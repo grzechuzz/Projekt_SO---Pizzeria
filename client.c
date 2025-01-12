@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (msg.table_number == TABLE_NOT_FOUND) {
-		printf("\033[36mGrupa klientow (%d) %d-osobowa: Nie chce sie nam czekac, wychodzimy z lokalu.\033[0m\n", getpid(), n);
+		printf("\033[36mGrupa klientow (%d) %d-osobowa: Nie chce sie nam czekac, sprobujemy ponownie jutro.\033[0m\n", getpid(), n);
 		exit(0);
 	} else if (msg.table_number == CLOSING_SOON) {
 		printf("\033[36mGrupa kilentow (%d) %d-osobowa: Szkoda, sprobujemy ponownie jutro.\033[0m\n", getpid(), n);
@@ -124,7 +124,7 @@ int main(int argc, char* argv[]) {
 	printf("\033[36mGrupa klientow (%d) %d-osobowa: Skladamy zamowienie na laczna kwote %.2lf zl. Siadamy z nim przy stoliku nr %d.\033[0m\n", getpid(), n, total_price, msg.table_number);
 
 	// Jedzenie
-	int eating_time = 12;
+	int eating_time = rand() % 15 + 5;
 	sleep(eating_time);
 
 	// Opuszczanie stolika 

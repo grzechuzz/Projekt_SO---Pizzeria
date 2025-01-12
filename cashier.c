@@ -119,6 +119,7 @@ int main(int argc, char* argv[]) {
 			if (idx == CLOSING_SOON) {
 				msg.mtype = msg.client.group_id;
 				msg.table_number = CLOSING_SOON;
+				printf("\033[32mKasjer: Grupo (%d), przykro mi, ale zaraz zamykamy, nie przydzielam stolika.\033[0m\n", msg.client.group_id);
 				if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
 					perror("Blad wysylania komunikatu w msgsnd()");
 					exit(1);
@@ -127,6 +128,7 @@ int main(int argc, char* argv[]) {
 				if (get_current_size(&waiting_clients) >= MAX_WAITING_CLIENTS) {
 					msg.mtype = msg.client.group_id;
 					msg.table_number = TABLE_NOT_FOUND;
+					printf("\033[32mKasjer: Grupo(%d), czas oczekiwania wyniesie ponad godzine z powodu ogromnej kolejki.\033[0m\n", msg.client.group_id);
 					if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
 						perror("Blad wysylania komunikatu w msgsnd()");
 						exit(1);
@@ -272,12 +274,11 @@ void seat_group(Table* tables, int table_idx, Client* c, int msg_id) {
 	msg.client = *c;
 	msg.table_number = table_idx;
 
+	printf("\033[32mKasjer: stolik nr %d przydzielony dla grupy (%d) %d-osobowej.\033[0m\n", table_idx, c->group_id, c->group_size);
 	if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
 		perror("Blad wysylania komunikatu w msgsnd()");
 		exit(1);
 	}
-
-	printf("\033[32mKasjer: stolik nr %d przydzielony dla grupy (%d) %d-osobowej.\033[0m\n", table_idx, c->group_id, c->group_size);	
 }
 
 void seat_all_possible_from_queue(Table* tables, LinkedList* waiting_clients, int table_count, int msg_id) {
