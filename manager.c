@@ -10,6 +10,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <errno.h>
 #include "helper.h"
 
 volatile sig_atomic_t fire_alarm = 0;
@@ -97,7 +98,7 @@ int main(int argc, char* argv[]) {
 	unsigned long worktime = time(NULL) + WORK_TIME;
 	int active_clients = 0;	
 
-	while (!fire_alarm && (!sigusr2_sent && (unsigned long)time(NULL) < worktime)) {
+	while (!fire_alarm && (!sigusr2_sent || (unsigned long)time(NULL) < worktime)) {
 		char group_size[5];
 		int rand_group_size = rand() % 3 + 1;
 		snprintf(group_size, sizeof(group_size), "%d", rand_group_size);
@@ -117,8 +118,8 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
-		int generate_time = rand() % 8 + 3;
-		sleep(generate_time);
+		int generate_time = rand() % 8 + 2;
+		usleep(50000);
 
 		if (!sigusr2_sent && (worktime - TIME_TO_CLOSE < (unsigned long)time(NULL))) {
 			sigusr2_sent = 1;
@@ -135,7 +136,8 @@ int main(int argc, char* argv[]) {
 
 	pid_t pid = waitpid(cashier_id, NULL, 0);
 	if (pid == -1)
-		perror("Blad waitpid");
+		if (errno != ECHILD)  
+			perror("Blad waitpid");
 
 	if (!fire_alarm && kill(cashier_id, 0) != 0) {
 		if (kill(fireman_id, SIGTERM) == -1) {
