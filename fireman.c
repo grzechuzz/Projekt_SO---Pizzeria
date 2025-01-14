@@ -7,6 +7,7 @@
 #include <sys/shm.h>
 #include <sys/types.h>
 #include <signal.h>
+#include <errno.h>
 #include "helper.h"
 
 void signal_handler(int sig);
@@ -69,14 +70,16 @@ int main(int argc, char* argv[]) {
     	for (int i = 0; i < table_count; ++i) {
         	for (int j = 0; j < 4; ++j) {
             		if (tables[i].group_id[j] != 0) {
-                		if (kill(tables[i].group_id[j], SIGUSR1) == -1) 
-                    			perror("Nie udalo sie wyslac SIGUSR1 do klienta");
+                		if (kill(tables[i].group_id[j], SIGUSR1) == -1)
+				       	// moze sie zdarzyc, ze w ulamku sekund, ze klient wyjdzie z lokalu, a jeszcze wisi w tabeli stolikow 
+					if (errno != ESRCH)	
+                    				perror("Nie udalo sie wyslac SIGUSR1 do klienta");
             		}
         	}
     	}
 
 	if (kill(pid_manager, SIGUSR1) == -1) {
-		perror("Nie udalo sie wyslac SIGUSR1 do managera");
+			perror("Nie udalo sie wyslac SIGUSR1 do managera");
 	}
 	V(sem_id, SEM_MUTEX_TABLES_DATA);
 

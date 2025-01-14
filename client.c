@@ -124,7 +124,7 @@ int main(int argc, char* argv[]) {
 	printf("\033[36mGrupa klientow (%d) %d-osobowa: Skladamy zamowienie na laczna kwote %.2lf zl. Siadamy z nim przy stoliku nr %d.\033[0m\n", getpid(), n, total_price, msg.table_number);
 
 	// Jedzenie
-	int eating_time = rand() % 15 + 5;
+	int eating_time = rand() % 12 + 5;
 	sleep(eating_time);
 
 	// Opuszczanie stolika 
@@ -164,7 +164,7 @@ void* single_person_order(void* orders) {
 	int x = 0;
 	while (x < co->size && co->orders[x] != -1)
 		++x;
-	co->orders[x] = rand() % 10;
+	co->orders[x] = (rand() ^ pthread_self()) % 10;
 	printf("\033[36mGrupa klientow (%d): Osoba %lu ", getpid(), pthread_self());
 	print_single_order(co->orders[x]);
 	pthread_mutex_unlock(&mutex);

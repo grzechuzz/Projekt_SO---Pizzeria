@@ -128,7 +128,7 @@ int main(int argc, char* argv[]) {
 				if (get_current_size(&waiting_clients) >= MAX_WAITING_CLIENTS) {
 					msg.mtype = msg.client.group_id;
 					msg.table_number = TABLE_NOT_FOUND;
-					printf("\033[32mKasjer: Grupo(%d), czas oczekiwania wyniesie ponad godzine z powodu ogromnej kolejki.\033[0m\n", msg.client.group_id);
+					printf("\033[32mKasjer: Grupo (%d), czas oczekiwania wyniesie ponad godzine z powodu ogromnej kolejki.\033[0m\n", msg.client.group_id);
 					if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
 						perror("Blad wysylania komunikatu w msgsnd()");
 						exit(1);
