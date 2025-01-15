@@ -93,7 +93,8 @@ int main(int argc, char* argv[]) {
         initialize_tables(tables, x1, x1+x2, 2);
         initialize_tables(tables, x1+x2, x1+x2+x3, 3);
         initialize_tables(tables, x1+x2+x3, x1+x2+x3+x4, 4);
-
+	
+	// Lista jednokierunkowa sluzy jako kolejka przed pizzeria
 	LinkedList waiting_clients;
 	initialize_linked_list(&waiting_clients, MAX_WAITING_CLIENTS);	
 
@@ -104,10 +105,22 @@ int main(int argc, char* argv[]) {
 	printf("\033[32mKasjer: otwieram kase!\033[0m\n");
 
 	while(!fire_alarm && ((unsigned long)time(NULL) < work_time)) {
+		// Powiadomienie osob w kolejce, ze zaraz zamykamy (inaczej dowiedzialyby sie dopiero podczas proby wejscia do pizzerii)
 		if (!fire_alarm && closing_soon == 1 && get_current_size(&waiting_clients) > 0) 
 			send_closing_soon(&waiting_clients, msg_id);
 
 		CashierClientComm msg;
+
+		/* I: Odbior zapytania klienta o stolik:
+		 * 1) Sprawdzamy kolejke, przydzielamy stoliki dla jak najwiekszej ilosci grup z kolejki (tyle ile sie da)
+		 * 2) Potem szukamy odpowiedniego stolika dla grupy skladajacej zapytanie, find_table moze zwrocic 3 rozne wartosci i na podstawie tego wykonujemy odpowiednia akcje: 
+		 * 	a) CLOSING_SOON - zaraz zamykamy, wtedy zapisujemy do pola msg.table_number wartosc CLOSING_SOON, 
+		 * 	   klient odbierajac zwrotny komunikat wie, ze juz nie moze wejsc
+		 *	b) TABLE_NOT_FOUND - stolik nieznaleziony dla okreslonej grupy, jezeli kolejka nie jest za dluga to grupa w niej staje,
+		 *	   w przeciwnym wypadku ustawiamy msg.table_number na TABLE_NOT_FOUND i klienci stwierdzaja, ze nie chce im sie stac w tak dlugiej kolejce
+		 *	c) liczba calkowita >= 0 (Numer wolnego stolika) - Wysylamy grupie w polu msg.table_number numer stolika przy ktorym moga siasc 
+		 */
+
 		int msgrcv_ret = msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), TABLE_RESERVATION, IPC_NOWAIT);
 		if (msgrcv_ret != -1 && !fire_alarm) {
 			P(sem_id, SEM_MUTEX_TABLES_DATA);
@@ -147,6 +160,13 @@ int main(int argc, char* argv[]) {
 			}
 		}
 		
+		/* II: Odbior wiadomosci od klienta o zlozonym zamowieniu
+		 * 1) Klienci wysylaja nam co zamowili: przeliczamy cene i wszystkie zamowione dania i dodajemy je do wyswietlenia w koncowym raporcie
+		 * 2) Nie odpowiadamy na ta wiadomosc klientowi, bo "czas od zamowienia do otrzymania pizzy moze byc traktowany jako nieistotny", zatem klient po prostu
+		 *    dostaje od razu wybrana przez niego pozycje z menu i z nia siada przy stoliku (dla nas jego wiadomosc jest jedynie informacja co ujac w raporcie) 
+		 * 3) Wyswietlamy aktualnie stan klientow siedzacych przy stolikach (opcjonalnie - mozna to zakomentowac)   
+		 */
+
 		msgrcv_ret = msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), ORDER, IPC_NOWAIT);	
 		if (msgrcv_ret != -1 && !fire_alarm) {
 			for (int i = 0; i < msg.client.group_size; ++i) {
@@ -164,6 +184,11 @@ int main(int argc, char* argv[]) {
 			}
 			
 		}
+
+		/* III: Odbior wiadomosci klienta o opuszczeniu stolika
+		 * 1) Klient po zjedzeniu wysyla do nas informacje, ze opuszcza stolik, uzywamy tej informacji do zaktualizowania stanu stolikow
+		 * 2) Od razu po tej informacji probujemy przydzielic stoliki ludziom z kolejki, aby ja troche rozladowac
+		 */
 		
 		msgrcv_ret = msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), TABLE_EXIT, IPC_NOWAIT);
 		if (msgrcv_ret != -1 && !fire_alarm) {
@@ -215,9 +240,13 @@ int main(int argc, char* argv[]) {
 	}
 		
 	generate_report(dishes_count, total_income, client_count);
-	sleep(1);
-	printf("\033[32mKasjer: Zamykam kase!\033[0m\n");	
+	//sleep(1);
+	printf("\033[32mKasjer: Zamykam kase!\033[0m\n");
+
 	remove_msg(msg_id);
+	if (shmdt(tables) == -1) 
+		perror("Blad odlaczania od pamieci dzielonej");
+
 
 	return 0;
 }

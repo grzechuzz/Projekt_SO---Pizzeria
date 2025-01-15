@@ -174,7 +174,6 @@ void* single_person_order(void* orders) {
 void fire_signal_handler(int sig) {
 	if (sig == SIGUSR1) {
 		printf("\033[36mGrupa klientow (%d): Pali sie! UCIEKAMY!!!!!!!\033[0m\n", getpid());
-		fflush(stdout);
 		exit(0);
 	}
 }

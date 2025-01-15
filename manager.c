@@ -72,7 +72,7 @@ int main(int argc, char* argv[]) {
                 exit(1);
         }
 
-	// Dostep do semaforow + pamieci dzielonej
+	// Dostep do semaforow + pamieci dzielonej (planowalem uzycie tego do rozszerzenia funkcjonalnosci, ale skonczylo sie na tym, ze manager jedynie usuwa te zasoby)
 	key_t shm_key = ftok(".", SHM_GEN_KEY);
 	if (shm_key == -1) {
 		perror("Blad generowania klucza w ftok()");
@@ -146,7 +146,6 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-
 	if (!fire_alarm && kill(cashier_id, 0) != 0) {
 		if (kill(fireman_id, SIGTERM) == -1) {
 			perror("Nie udalo sie wyslac SIGTERM do strazaka!");
@@ -159,7 +158,7 @@ int main(int argc, char* argv[]) {
 	remove_sem(sem_id);
 
 	printf("\033[31mManager: Odczytuje raport...\033[0m\n");
-	sleep(1);
+	//sleep(1);
 	read_report();
 
 	return 0;

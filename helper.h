@@ -13,7 +13,7 @@
 #define TABLE_EXIT 3
 #define TABLE_NOT_FOUND -1
 #define CLOSING_SOON -2
-#define TIME_TO_CLOSE 10
+#define TIME_TO_CLOSE 5
 #define WORK_TIME 60
 #define MAX_ACTIVE_CLIENTS 400
 #define MAX_WAITING_CLIENTS 30
