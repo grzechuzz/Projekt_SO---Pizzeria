@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 
-	sleep(1); // inicjalizacja zasobow kasjera
+	sleep(1); // czekamy, zeby kasjer zainicjalizowal wszystkie zasoby
 
 	// Tworzenie + odpalanie strazaka c;
 	pid_t fireman_id = fork();
@@ -73,7 +73,6 @@ int main(int argc, char* argv[]) {
         }
 
 	// Dostep do semaforow + pamieci dzielonej
-
 	key_t shm_key = ftok(".", SHM_GEN_KEY);
 	if (shm_key == -1) {
 		perror("Blad generowania klucza w ftok()");
@@ -95,6 +94,7 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 
+	// ile +/- dziala restauracja 
 	unsigned long worktime = time(NULL) + WORK_TIME;
 	int active_clients = 0;	
 
@@ -103,7 +103,7 @@ int main(int argc, char* argv[]) {
 		int rand_group_size = rand() % 3 + 1;
 		snprintf(group_size, sizeof(group_size), "%d", rand_group_size);
 		
-		if (active_clients < MAX_ACTIVE_CLIENTS) {
+		if (active_clients < MAX_ACTIVE_CLIENTS && !fire_alarm) {
 		       	active_clients++;	
 			pid_t client_id = fork();
 			if (client_id == -1) {
@@ -117,9 +117,9 @@ int main(int argc, char* argv[]) {
 				exit(1);
 			}
 		}
-
-		int generate_time = rand() % 8 + 2;
-		usleep(50000);
+		// co ile generujemy klientow
+		int generate_time = (rand() % 1001 + 500) * 1000;
+		usleep(generate_time);
 
 		if (!sigusr2_sent && (worktime - TIME_TO_CLOSE < (unsigned long)time(NULL))) {
 			sigusr2_sent = 1;
@@ -129,15 +129,23 @@ int main(int argc, char* argv[]) {
 				exit(1);
 			}
 		}
-		
+	
+		// zbieramy zombiaki
 		while (waitpid(-1, NULL, WNOHANG) > 0)
 			active_clients--;
 	}
 
-	pid_t pid = waitpid(cashier_id, NULL, 0);
-	if (pid == -1)
-		if (errno != ECHILD)  
+	while (waitpid(cashier_id, NULL, 0) == -1) {
+		if (errno == EINTR)
+			continue;
+		else if (errno == ECHILD)
+			break;
+		else {
 			perror("Blad waitpid");
+			break;
+		}
+	}
+
 
 	if (!fire_alarm && kill(cashier_id, 0) != 0) {
 		if (kill(fireman_id, SIGTERM) == -1) {
