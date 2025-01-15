@@ -32,7 +32,7 @@ void send_closing_soon(LinkedList* waiting_clients, int msg_id);
 
 int main(int argc, char* argv[]) {
 	if (argc != 5) {
-                fprintf(stderr, "Bledna liczba argumentow. Poprawne uzycie ./manager <X1> <X2> <X3> <X4>");
+                fprintf(stderr, "Bledna liczba argumentow. Poprawne uzycie ./cashier <X1> <X2> <X3> <X4>");
                 exit(1);
         }
 
@@ -83,7 +83,6 @@ int main(int argc, char* argv[]) {
 	int shm_id = create_shm(shm_key, sizeof(Table) * table_count);
 	int msg_id = create_msg(msg_key);
 
-
 	Table* tables = shmat(shm_id, NULL, 0);
 	if (tables == (void*)-1) {
 		perror("Blad podlaczenia pamieci dzielonej w shmat()");
@@ -105,12 +104,12 @@ int main(int argc, char* argv[]) {
 	printf("\033[32mKasjer: otwieram kase!\033[0m\n");
 
 	while(!fire_alarm && ((unsigned long)time(NULL) < work_time)) {
-		if (closing_soon == 1 && get_current_size(&waiting_clients) > 0) 
+		if (!fire_alarm && closing_soon == 1 && get_current_size(&waiting_clients) > 0) 
 			send_closing_soon(&waiting_clients, msg_id);
 
 		CashierClientComm msg;
-
-		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), TABLE_RESERVATION, IPC_NOWAIT) != -1) {
+		int msgrcv_ret = msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), TABLE_RESERVATION, IPC_NOWAIT);
+		if (msgrcv_ret != -1 && !fire_alarm) {
 			P(sem_id, SEM_MUTEX_TABLES_DATA);
 			if (get_current_size(&waiting_clients) > 0)
 				seat_all_possible_from_queue(tables, &waiting_clients, table_count, msg_id);
@@ -135,75 +134,78 @@ int main(int argc, char* argv[]) {
 					}
 				} else {
 					add(&waiting_clients, &msg.client);
-					display(&waiting_clients);
+					display(&waiting_clients); // wyswietlanie kolejki przed lokalem
 				}
 			} else {
 				seat_group(tables, idx, &msg.client, msg_id);
 			}
 			V(sem_id, SEM_MUTEX_TABLES_DATA);
-		} else {
-			if (errno != ENOMSG) {
+		} else if (msgrcv_ret == -1) {
+			if (errno != ENOMSG && errno != EINTR) {
 				perror("Blad odbierania komunikatu w msgrcv()");
 				exit(1);
 			}
 		}
-
-		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), ORDER, IPC_NOWAIT) != -1) {
-
+		
+		msgrcv_ret = msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), ORDER, IPC_NOWAIT);	
+		if (msgrcv_ret != -1 && !fire_alarm) {
 			for (int i = 0; i < msg.client.group_size; ++i) {
 				dishes_count[msg.dishes[i]]++;
 				total_income += menu[msg.dishes[i]].price;
 			}
 			client_count += msg.client.group_size;
 			P(sem_id, SEM_MUTEX_TABLES_DATA);	
-			tables_status(tables, table_count);
+			tables_status(tables, table_count); // wyswietlanie stanu stolikow
 			V(sem_id, SEM_MUTEX_TABLES_DATA);
-		} else {
-			if (errno != ENOMSG) {
+		} else if (msgrcv_ret == -1) {
+			if (errno != ENOMSG && errno != EINTR) {
 				perror("Blad odbierania komunkatu w msgrcv()");
 				exit(1);
 			}
 			
 		}
-
-		if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), TABLE_EXIT, IPC_NOWAIT) != -1) {
+		
+		msgrcv_ret = msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), TABLE_EXIT, IPC_NOWAIT);
+		if (msgrcv_ret != -1 && !fire_alarm) {
 			P(sem_id, SEM_MUTEX_TABLES_DATA);
 			remove_group_from_table(tables, msg.table_number, msg.client.group_id, msg.client.group_size);
 			if (get_current_size(&waiting_clients) > 0)
 				seat_all_possible_from_queue(tables, &waiting_clients, table_count, msg_id);
 			V(sem_id, SEM_MUTEX_TABLES_DATA);
-		} else {
-			if (errno != ENOMSG) {
+		} else if (msgrcv_ret == -1) {
+			if (errno != ENOMSG && errno != EINTR) {
 				perror("Blad odbierania komunikatu w msgrcv()");
 				exit(1);
 			}
 		}
 	}
+
+	if (!fire_alarm) 
+		 printf("\033[32mKasjer: Jezeli ktos jeszcze je, to daje mu dokonczyc...\033[0m\n");	
 	
-	if (fire_alarm == 1) {
-		printf("\033[32mKasjer: POZAR! Zaraz zamykam kase i szybko generuje raport!\033[0m\n");
-	} else {
-		printf("\033[32mKasjer: Generuje raport!\033[0m\n");
-		printf("\033[32mKasjer: Jezeli ktos jeszcze je, to daje mu dokonczyc...\033[0m\n");
-		while (1) {
-			int check_tables = 1;
-			for (int i = 0; i < table_count; ++i) {
-				if (tables[i].current != 0) {
-					check_tables = 0;
-					break;
-				}
-			}
-			
-			if (check_tables)
+	// Przy pozarze: upewniam sie, ze wszyscy wyjda
+	// Gdy nie ma pozaru: daje dokonczyc jedzenie pozostalym
+	// Nie bedzie nieskonczonej petli w przypadku pozaru, bo strazak ustawia stoliki na 0
+	while (1) {
+		int check_tables = 1;
+		for (int i = 0; i < table_count; ++i) {
+			if (tables[i].current != 0) {
+				check_tables = 0;
 				break;
+			}
+		}
 			
+		if (check_tables)
+			break;
+		
+		if (!fire_alarm) {	
 			CashierClientComm msg;
-			while (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), TABLE_EXIT, IPC_NOWAIT) == -1) {
-				if (errno == ENOMSG)
+			if (msgrcv(msg_id, &msg, sizeof(msg) - sizeof(long), TABLE_EXIT, IPC_NOWAIT) == -1)  {
+				if (errno == ENOMSG || errno == EINTR) 
 					continue;
 				else {
-					perror("Blad odbierania komunikatu w msgrcv()");
-					exit(1);
+				perror("Blad odbierania komunikatu w msgrcv()");
+				exit(1);
 				}
 			}
 			P(sem_id, SEM_MUTEX_TABLES_DATA);
@@ -211,11 +213,10 @@ int main(int argc, char* argv[]) {
 			V(sem_id, SEM_MUTEX_TABLES_DATA);
 		}
 	}
-
+		
 	generate_report(dishes_count, total_income, client_count);
-
+	sleep(1);
 	printf("\033[32mKasjer: Zamykam kase!\033[0m\n");	
-
 	remove_msg(msg_id);
 
 	return 0;
@@ -356,9 +357,10 @@ void generate_report(int* dishes_count, double total_income, int client_count) {
 }
 
 void signals_handler(int sig) {
-	if (sig == SIGUSR1)
+	if (sig == SIGUSR1) {
 		fire_alarm = 1;
-	else if (sig == SIGUSR2) {
+		printf("\033[32mKasjer: POZAR! Sprawdzam czy wszyscy klienci opuscili lokal...\033[0m\n");	
+	} else if (sig == SIGUSR2) {
 		closing_soon = 1;
 		work_time = (unsigned long)time(NULL) + TIME_TO_CLOSE;
 	}

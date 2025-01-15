@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
 	// Zgloszenie zapotrzebowania na stolik
 	printf("\033[36mGrupa klientow (%d) %d-osobowa: zglaszamy zapotrzebowanie na stolik i stajemy w kolejce\033[0m\n", getpid(), n);
 	if (msgsnd(msg_id, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
-		if (errno == EIDRM) 
+		if (errno == EIDRM || errno == EINVAL) 
 			exit(0);
 		perror("Blad wysylania komunikatu w msgsnd()");
 		exit(1);
@@ -124,7 +124,7 @@ int main(int argc, char* argv[]) {
 	printf("\033[36mGrupa klientow (%d) %d-osobowa: Skladamy zamowienie na laczna kwote %.2lf zl. Siadamy z nim przy stoliku nr %d.\033[0m\n", getpid(), n, total_price, msg.table_number);
 
 	// Jedzenie
-	int eating_time = rand() % 12 + 5;
+	int eating_time = rand() % 6 + 6;
 	sleep(eating_time);
 
 	// Opuszczanie stolika 
@@ -134,7 +134,6 @@ int main(int argc, char* argv[]) {
 		exit(1);	
 	}
 	printf("\033[36mGrupa kilentow (%d) %d-osobowa: Opuszczamy stolik nr %d.\033[0m\n", getpid(), n, msg.table_number);
-
 
 	pthread_mutex_destroy(&mutex);
 	free(orders);
@@ -175,6 +174,7 @@ void* single_person_order(void* orders) {
 void fire_signal_handler(int sig) {
 	if (sig == SIGUSR1) {
 		printf("\033[36mGrupa klientow (%d): Pali sie! UCIEKAMY!!!!!!!\033[0m\n", getpid());
+		fflush(stdout);
 		exit(0);
 	}
 }

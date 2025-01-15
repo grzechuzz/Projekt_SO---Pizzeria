@@ -76,12 +76,13 @@ int main(int argc, char* argv[]) {
                     				perror("Nie udalo sie wyslac SIGUSR1 do klienta");
             		}
         	}
+		tables[i].current = 0;
     	}
+	V(sem_id, SEM_MUTEX_TABLES_DATA);
 
 	if (kill(pid_manager, SIGUSR1) == -1) {
 			perror("Nie udalo sie wyslac SIGUSR1 do managera");
 	}
-	V(sem_id, SEM_MUTEX_TABLES_DATA);
 
     	if (shmdt(tables) == -1) 
         	perror("Blad odlaczania pamieci dzielonej");
