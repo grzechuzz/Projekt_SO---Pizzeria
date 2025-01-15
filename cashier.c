@@ -240,7 +240,7 @@ int main(int argc, char* argv[]) {
 	}
 		
 	generate_report(dishes_count, total_income, client_count);
-	//sleep(1);
+	sleep(1);
 	printf("\033[32mKasjer: Zamykam kase!\033[0m\n");
 
 	remove_msg(msg_id);
