@@ -335,7 +335,7 @@ void seat_all_possible_from_queue(Table* tables, LinkedList* waiting_clients, in
 }
 
 void generate_report(int* dishes_count, double total_income, int client_count) {
-	int file = open("reports.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	int file = open("reports.txt", O_WRONLY | O_CREAT | O_TRUNC, 0600);
 	if (file == -1) {
 		perror("Blad otwarcia pliku!\n");
 		exit(1);
