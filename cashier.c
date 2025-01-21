@@ -78,8 +78,8 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 
-	// Tworzenie semafora, pamieci dzielonej, kolejki komunikatow
-	int sem_id = create_sem(sem_key);
+	// Tworzenie pamieci dzielonej, kolejki komunikatow, dolaczanie do zbioru semaforow
+	int sem_id = join_sem(sem_key);
 	int shm_id = create_shm(shm_key, sizeof(Table) * table_count);
 	int msg_id = create_msg(msg_key);
 
@@ -88,12 +88,13 @@ int main(int argc, char* argv[]) {
 		perror("Blad podlaczenia pamieci dzielonej w shmat()");
 		exit(1);
 	}
-
+	
         initialize_tables(tables, 0, x1, 1);
         initialize_tables(tables, x1, x1+x2, 2);
         initialize_tables(tables, x1+x2, x1+x2+x3, 3);
         initialize_tables(tables, x1+x2+x3, x1+x2+x3+x4, 4);
-	
+	V(sem_id, SEM_INIT_READY); // kasjer zaladowal zasoby, mozna odblokowac managera, by ladowal strazaka
+
 	// Lista jednokierunkowa sluzy jako kolejka przed pizzeria
 	LinkedList waiting_clients;
 	initialize_linked_list(&waiting_clients, MAX_WAITING_CLIENTS);	
@@ -240,13 +241,12 @@ int main(int argc, char* argv[]) {
 	}
 		
 	generate_report(dishes_count, total_income, client_count);
-	sleep(1);
+	//sleep(1);
 	printf("\033[32mKasjer: Zamykam kase!\033[0m\n");
 
 	remove_msg(msg_id);
-	if (shmdt(tables) == -1) 
-		perror("Blad odlaczania od pamieci dzielonej");
-
+	remove_shm(shm_id, tables);
+	remove_sem(sem_id);
 
 	return 0;
 }

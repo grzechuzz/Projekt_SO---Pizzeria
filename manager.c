@@ -36,6 +36,15 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 
+	// Tworzenie zbioru semaforow, dla managera potrzebny jest tylko po to, zeby strazak zaczal dzialac, gdy juz kasjer zaladuje potrzebne zasoby :)
+	key_t sem_key = ftok(".", SEM_GEN_KEY);
+	if (sem_key == -1) {
+		perror("Blad generowania klucza w ftok()");
+		exit(1);
+	}
+
+	int sem_id = create_sem(sem_key);
+		
 	// Tworzenie + odpalanie kasjera c;
 	pid_t cashier_id = fork();
 	if (cashier_id == -1) {
@@ -49,7 +58,7 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 
-	sleep(1); // czekamy, zeby kasjer zainicjalizowal wszystkie zasoby
+	P(sem_id, SEM_INIT_READY); // czekamy, az kasjer sie 'zaladuje' i pozwoli nam zaladowac strazaka, pozniej ten semafor juz jest zbedny
 
 	// Tworzenie + odpalanie strazaka c;
 	pid_t fireman_id = fork();
@@ -71,28 +80,6 @@ int main(int argc, char* argv[]) {
                 perror("Manager: nie udalo sie odpalic procesu strazaka");
                 exit(1);
         }
-
-	// Dostep do semaforow + pamieci dzielonej (planowalem uzycie tego do rozszerzenia funkcjonalnosci, ale skonczylo sie na tym, ze manager jedynie usuwa te zasoby)
-	key_t shm_key = ftok(".", SHM_GEN_KEY);
-	if (shm_key == -1) {
-		perror("Blad generowania klucza w ftok()");
-		exit(1);
-	}
-
-	key_t sem_key = ftok(".", SEM_GEN_KEY);
-	if (sem_key == -1) {
-		perror("Blad generowania klucza w ftok()");
-		exit(1);
-	}
-
-	int sem_id = join_sem(sem_key);
-	int shm_id = join_shm(shm_key);
-
-	Table* tables = shmat(shm_id, NULL, 0);
-	if (tables == (void*)-1) {
-		perror("Blad podlaczenia pamieci dzielonej");
-		exit(1);
-	}
 
 	// ile +/- dziala restauracja 
 	unsigned long worktime = time(NULL) + WORK_TIME;
@@ -154,11 +141,7 @@ int main(int argc, char* argv[]) {
 
 	while (wait(NULL) > 0);
 
-	remove_shm(shm_id, tables);
-	remove_sem(sem_id);
-
 	printf("\033[31mManager: Odczytuje raport...\033[0m\n");
-	//sleep(1);
 	read_report();
 
 	return 0;

@@ -5,6 +5,7 @@
 #include <sys/ipc.h>
 
 #define SEM_MUTEX_TABLES_DATA 0
+#define SEM_INIT_READY 1
 #define SEM_GEN_KEY 'A'
 #define SHM_GEN_KEY 'B'
 #define MSG_GEN_KEY 'C'

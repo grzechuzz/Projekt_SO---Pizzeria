@@ -24,13 +24,20 @@ Dish menu[10] = {
 
 
 int create_sem(key_t key) {
-	int sem_id = semget(key, 1, IPC_CREAT|0600);
+	int sem_id = semget(key, 2, IPC_CREAT|0600);
 	if (sem_id == -1) {
 		perror("blad w semget()");
 		exit(1);
 	}
 
+	// synchro kasjer <-> strazak
 	if (semctl(sem_id, SEM_MUTEX_TABLES_DATA, SETVAL, 1) == -1) {
+		perror("blad w semctl() [inicjalizacja semaforow]");
+		exit(1);
+	}
+
+	// synchro kasjer <-> manager 
+	if (semctl(sem_id, SEM_INIT_READY, SETVAL, 0) == -1) {
 		perror("blad w semctl() [inicjalizacja semaforow]");
 		exit(1);
 	}
