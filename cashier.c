@@ -251,6 +251,17 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
+/**
+ * initialize_tables - Inicjalizuje stoliki w pizzerii.
+ * @tables: Tablica struktur stolikow [pamiec dzielona].
+ * @start: Indeks poczatkowy dla inicjalizacji stolikow.
+ * @end: Indeks koncowy dla inicjalizacji stolikow.
+ * @capacity: Liczba miejsc przy kazdym stoliku w podanym zakresie.
+ *
+ * Ustawia stoliki z odpowiednia pojemnoscia w zadanym zakresie,
+ * oznaczajac je jako puste.
+ */
+
 void initialize_tables(Table* tables, int start, int end, int capacity) {
         for (int i = start; i < end; ++i) {
                 for (int j = 0; j < 4; ++j)
@@ -261,6 +272,17 @@ void initialize_tables(Table* tables, int start, int end, int capacity) {
                 tables[i].current = 0;
         }
 }
+
+/**
+ * find_table - Znajduje odpowiedni stolik dla grupy klientow.
+ * @tables: Tablica struktur stolikow.
+ * @group_size: Liczba osob w grupie klientow.
+ * @table_count: Liczba wszystkich stolikow.
+ *
+ * Szuka pierwszego dostepnego stolika, ktory spelnia wymagania grupy
+ * co do liczby miejsc. Jezeli lokal zaraz sie zamknie, zwraca CLOSING_SOON.
+ * Jezeli brak stolika, zwraca TABLE_NOT_FOUND.
+ */
 
 int find_table(Table* tables, int group_size, int table_count) {
 	if (closing_soon)
@@ -275,6 +297,17 @@ int find_table(Table* tables, int group_size, int table_count) {
 	return TABLE_NOT_FOUND;
 }
 
+/**
+ * remove_group_from_table - Usuwa grupe klientow ze stolika.
+ * @tables: Tablica struktur stolikow.
+ * @table_idx: Indeks stolika.
+ * @group_id: Identyfikator grupy klientow.
+ * @group_size: Rozmiar grupy klientow.
+ *
+ * Zwolnia miejsca zajmowane przez grupe w wybranym stoliku
+ * oraz resetuje informacje o grupie, jesli stolik staje sie pusty.
+ */
+
 void remove_group_from_table(Table* tables, int table_idx, pid_t group_id, int group_size) {
 	int i = 0;
 	while (i < 4 && tables[table_idx].group_id[i] != group_id)
@@ -286,6 +319,17 @@ void remove_group_from_table(Table* tables, int table_idx, pid_t group_id, int g
 	if (tables[table_idx].current == 0)
 		tables[table_idx].group_size = 0;
 }
+
+/**
+ * seat_group - Umieszcza grupe klientow przy stoliku.
+ * @tables: Tablica struktur stolikow.
+ * @table_idx: Indeks wybranego stolika.
+ * @c: Struktura reprezentujaca grupe klientow.
+ * @msg_id: Identyfikator kolejki komunikatow.
+ *
+ * Rejestruje grupe klientow przy wybranym stoliku i wysyla
+ * potwierdzenie do grupy z informacjami o stoliku.
+ */
 
 void seat_group(Table* tables, int table_idx, Client* c, int msg_id) {
 	if (tables[table_idx].current == 0) 
@@ -311,6 +355,18 @@ void seat_group(Table* tables, int table_idx, Client* c, int msg_id) {
 	}
 }
 
+/**
+ * seat_all_possible_from_queue - Umieszcza przy stolikach wszystkie pasujace grupy z kolejki.
+ * @tables: Tablica struktur stolikow.
+ * @waiting_clients: Lista jednokierunkowa reprezentujaca kolejke klientow.
+ * @table_count: Liczba wszystkich stolikow.
+ * @msg_id: Identyfikator kolejki komunikatow.
+ *
+ * Iteruje przez kolejke klientow i przypisuje stoliki grupom,
+ * w zaleznosci od ich rozmiaru oraz dostepnych miejsc przy stolikach.
+ * Jezeli grupa zostanie usadzona, jest usuwana z kolejki.
+ */
+
 void seat_all_possible_from_queue(Table* tables, LinkedList* waiting_clients, int table_count, int msg_id) {
 	int changed = 1;
 	while (changed) {
@@ -333,6 +389,8 @@ void seat_all_possible_from_queue(Table* tables, LinkedList* waiting_clients, in
 		}
 	}
 }
+
+// zapis raportu do pliku
 
 void generate_report(int* dishes_count, double total_income, int client_count) {
 	int file = open("reports.txt", O_WRONLY | O_CREAT | O_TRUNC, 0600);
@@ -385,6 +443,15 @@ void generate_report(int* dishes_count, double total_income, int client_count) {
 	close(file);
 }
 
+/**
+ * signals_handler - Obsluguje sygnaly SIGUSR1 i SIGUSR2.
+ * @sig: Numer sygnalu.
+ *
+ * Dla SIGUSR1 ustawia flage fire_alarm, co oznacza ewakuacje.
+ * Dla SIGUSR2 ustawia flage closing_soon oraz dostosowuje czas
+ * pozostaly do zamkniecia pizzerii.
+ */
+
 void signals_handler(int sig) {
 	if (sig == SIGUSR1) {
 		fire_alarm = 1;
@@ -394,6 +461,8 @@ void signals_handler(int sig) {
 		work_time = (unsigned long)time(NULL) + TIME_TO_CLOSE;
 	}
 }
+
+// wyswietlenie aktualnego stanu stolikow
 
 void tables_status(Table* tables, int table_count) {
 	printf("\n");
@@ -409,6 +478,15 @@ void tables_status(Table* tables, int table_count) {
 	}
 	printf("\033[32m------------------------------------------\033[0m\n\n");
 }
+
+/**
+ * send_closing_soon - Informuje grupy w kolejce o zamknieciu lokalu.
+ * @waiting_clients: Lista jednokierunkowa reprezentujaca kolejke klientow.
+ * @msg_id: Identyfikator kolejki komunikatow.
+ *
+ * Wysyla wiadomosc do wszystkich oczekujacych grup, informujac ich,
+ * ze pizzeria zaraz zostanie zamknieta i nie ma sensu czekac.
+ */
 
 void send_closing_soon(LinkedList* waiting_clients, int msg_id) {
 	Node* temp = waiting_clients->head;

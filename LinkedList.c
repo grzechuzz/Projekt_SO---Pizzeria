@@ -34,6 +34,20 @@ void add(LinkedList* ll, Client* c) {
 	ll->current_size++;
 }
 
+/**
+ * pop_suitable - Usuwa i zwraca pierwszego pasujacego klienta z kolejki.
+ * @ll: Wskaznik na liste jednokierunkowa reprezentujaca kolejke klientow.
+ * @needed_group_size: Rozmiar grupy wymagany przez stolik (0 oznacza brak ograniczen).
+ * @available_seats: Liczba dostepnych miejsc przy stoliku.
+ *
+ * Funkcja iteruje przez kolejke klientow, szukajac pierwszej grupy, ktora pasuje
+ * do podanych kryteriow. Jezeli `needed_group_size` wynosi 0, sprawdza tylko, czy
+ * rozmiar grupy miesci sie w dostepnych miejscach. W przeciwnym razie szuka grupy
+ * o dokladnie takim samym rozmiarze, jak wymagany, i mieszczacej sie w dostepnych
+ * miejscach. Jezeli pasujacy klient zostanie znaleziony, usuwa go z kolejki i zwraca
+ * jego wskaznik. Jezeli nie znajdzie zadnego klienta spelniajacego kryteria, zwraca NULL.
+ */
+
 Client* pop_suitable(LinkedList* ll, int needed_group_size, int available_seats) {
 	if (ll->head == NULL) 
 		return NULL;

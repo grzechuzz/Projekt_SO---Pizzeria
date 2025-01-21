@@ -7,6 +7,7 @@
 #include <sys/ipc.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <errno.h>
 #include "helper.h"
 
 Dish menu[10] = {	
@@ -108,6 +109,8 @@ int join_shm(key_t key) {
 int join_msg(key_t key) {
 	int msg_id = msgget(key, 0);
 	if (msg_id == -1) {
+		if (errno == ENOENT)
+			exit(1);
 		perror("blad w msgget() [dolaczanie do kolejki komunikatow]");
 		exit(1);
 	}

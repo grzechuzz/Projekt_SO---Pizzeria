@@ -156,6 +156,16 @@ void arg_checker(int argc, char* argv[]) {
 	}
 }
 
+/**
+ * single_person_order - Watek reprezentujacy pojedyncza osobe w grupie klientow, wybierajacy zamowienie.
+ * @orders: Wskaznik na strukture ClientOrders, zawierajaca zamowienia grupy oraz ich liczbe.
+ *
+ * Funkcja reprezentuje dzialanie jednej osoby w grupie klientow. Zamyka sekcje krytyczna przy uzyciu mutexa,
+ * aby uniknac konfliktow podczas wyboru pozycji w tablicy zamowien grupy. Kazda osoba losuje swoje zamowienie
+ * z menu przy pomocy funkcji rand() oraz zapisuje je w tablicy zamowien. Nastepnie wypisuje informacje o swoim
+ * zamowieniu w terminalu. Po zakonczeniu dzialania watek sie zamyka.
+ */
+
 void* single_person_order(void* orders) {
 	ClientOrders* co = (ClientOrders*)orders;
 
